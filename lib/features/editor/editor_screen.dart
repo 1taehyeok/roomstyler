@@ -1,9 +1,11 @@
-import 'dart:math' as math;
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../state/scene_providers.dart';
-import '../../core/models/scene.dart';
-import 'package:go_router/go_router.dart';
+import 'package:roomstyler/core/models/scene.dart';
+import 'package:roomstyler/state/scene_providers.dart';
+import 'package:uuid/uuid.dart';
 
 class EditorScreen extends ConsumerStatefulWidget {
   const EditorScreen({super.key});
@@ -13,184 +15,205 @@ class EditorScreen extends ConsumerStatefulWidget {
 }
 
 class _EditorScreenState extends ConsumerState<EditorScreen> {
-  // 편집 캔버스의 크기 측정을 위해 GlobalKey 사용
-  final _canvasKey = GlobalKey();
+  int? _selectedItemIndex;
+  bool _isSaving = false;
 
-  void _addDummyFurniture() {
-    ref.read(currentSceneProvider.notifier).addItem(
-      SceneLayoutItem(furnitureId: 'chair_01', x: .5, y: .5, scale: 1),
-    );
-  }
+  // --- 제스처 상태 저장을 위한 변수 ---
+  // 아이템의 초기 상태
+  var _itemInitialState = SceneLayoutItem(furnitureId: '', name: '', x: 0, y: 0);
+  // 제스처 시작 시 손가락의 절대 위치
+  Offset _gestureStartPoint = Offset.zero;
 
-  void _autoLayout() {
-    // TODO: VEO3 자동 배치 호출 → state 업데이트
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('AI 자동 배치(더미): 중앙 정렬 완료')),
-    );
-    ref.read(currentSceneProvider.notifier).clear();
-    _addDummyFurniture();
+  Future<void> _saveScene() async {
+    setState(() => _isSaving = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그인이 필요합니다.')),
+        );
+        return;
+      }
+
+      final scene = ref.read(currentSceneProvider);
+      final sceneId = scene.id == 'temp' ? const Uuid().v4() : scene.id;
+
+      final sceneToSave = scene.copyWith(
+        id: sceneId,
+        userId: user.uid,
+      );
+
+      await FirebaseFirestore.instance
+          .collection('scenes')
+          .doc(sceneToSave.id)
+          .set(sceneToSave.toJson());
+
+      ref.read(currentSceneProvider.notifier).state = sceneToSave;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('성공적으로 저장되었습니다!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+      );
+    } finally {
+      setState(() => _isSaving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final scene = ref.watch(currentSceneProvider);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('배치 편집기'),
+        title: const Text('방 꾸미기'),
         actions: [
-          IconButton(
-            tooltip: '자동 배치',
-            icon: const Icon(Icons.auto_awesome),
-            onPressed: _autoLayout,
-          ),
-          IconButton(
-            tooltip: '미리보기/공유',
-            icon: const Icon(Icons.arrow_forward),
-            onPressed: () => context.push('/preview'),
-          ),
+          if (_isSaving)
+            const Padding(
+              padding: EdgeInsets.only(right: 16.0),
+              child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator())),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: _saveScene,
+            ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.chair), label: '가구 추가'),
-          NavigationDestination(icon: Icon(Icons.color_lens), label: '스타일'),
-          NavigationDestination(icon: Icon(Icons.light_mode), label: '조명'),
-          NavigationDestination(icon: Icon(Icons.layers_clear), label: '가구 제거'),
-        ],
-        onDestinationSelected: (i) {
-          if (i == 0) _addDummyFurniture(); // TODO: 카탈로그에서 선택한 품목 연결
-          if (i == 3) { // 제거 도구 더미
-            if (scene.layout.isNotEmpty) {
-              ref.read(currentSceneProvider.notifier).removeItem(scene.layout.length-1);
-            }
-          }
-        },
-        selectedIndex: 0,
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Center(
-            child: AspectRatio(
-              aspectRatio: 16/9,
-              child: Container(
-                key: _canvasKey,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(.4),
-                  borderRadius: BorderRadius.circular(12),
+      body: GestureDetector(
+        onTap: () => setState(() => _selectedItemIndex = null),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final canvasWidth = constraints.maxWidth;
+            final canvasHeight = constraints.maxHeight;
+
+            return Stack(
+              children: [
+                Container(
+                  color: Colors.grey[200],
+                  width: double.infinity,
+                  height: double.infinity,
+                  child: const Center(child: Text('여기에 방 배경이 표시됩니다.')),
                 ),
-                child: Stack(
-                  children: [
-                    // TODO: 방 배경 이미지 (Room.imageUrl)
-                    Positioned.fill(
-                      child: Center(
-                        child: Text('방 이미지(더미)', style: Theme.of(context).textTheme.bodyLarge),
+                ...scene.layout.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  SceneLayoutItem item = entry.value;
+                  bool isSelected = _selectedItemIndex == index;
+                  const itemBaseSize = 100.0;
+
+                  return Positioned(
+                    left: item.x * canvasWidth - (itemBaseSize * item.scale / 2),
+                    top: item.y * canvasHeight - (itemBaseSize * item.scale / 2),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedItemIndex = index),
+                      onScaleStart: (details) {
+                        _itemInitialState = item; // 아이템의 전체 초기 상태 저장
+                        _gestureStartPoint = details.focalPoint; // 제스처 시작점의 절대 좌표 저장
+                      },
+                      onScaleUpdate: (details) {
+                        // 현재 손가락 위치와 시작점의 차이를 계산
+                        final gestureDelta = details.focalPoint - _gestureStartPoint;
+
+                        // 이동 거리 계산 (절대->상대 좌표 변환)
+                        final newX = _itemInitialState.x + (gestureDelta.dx / canvasWidth);
+                        final newY = _itemInitialState.y + (gestureDelta.dy / canvasHeight);
+
+                        // 크기 및 회전 계산
+                        final newScale = _itemInitialState.scale * details.scale;
+                        final newRotation = _itemInitialState.rotation + details.rotation;
+
+                        _updateItem(index, item.copyWith(
+                          x: newX,
+                          y: newY,
+                          scale: newScale,
+                          rotation: newRotation,
+                        ));
+                      },
+                      child: _FurnitureItemView(
+                        item: item,
+                        isSelected: isSelected,
+                        baseSize: itemBaseSize,
+                        onDelete: () {
+                          ref.read(currentSceneProvider.notifier).removeItem(index);
+                          setState(() => _selectedItemIndex = null);
+                        },
                       ),
                     ),
-                    // 배치된 가구들
-                    ...scene.layout.asMap().entries.map((e) {
-                      final i = e.key;
-                      final item = e.value;
-                      return _DraggableFurniture(
-                        key: ValueKey('item_$i'),
-                        index: i,
-                        item: item,
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addDummyFurniture,
-        icon: const Icon(Icons.add),
-        label: const Text('가구 배치'),
+                  );
+                }),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
+
+  void _updateItem(int index, SceneLayoutItem newItem) {
+    ref.read(currentSceneProvider.notifier).updateItem(index, newItem);
+  }
 }
 
-class _DraggableFurniture extends ConsumerStatefulWidget {
-  final int index;
+class _FurnitureItemView extends StatelessWidget {
   final SceneLayoutItem item;
-  const _DraggableFurniture({super.key, required this.index, required this.item});
+  final bool isSelected;
+  final double baseSize;
+  final VoidCallback onDelete;
 
-  @override
-  ConsumerState<_DraggableFurniture> createState() => _DraggableFurnitureState();
-}
-
-class _DraggableFurnitureState extends ConsumerState<_DraggableFurniture> {
-  late double _x;
-  late double _y;
-  late double _scale;
-  late double _rotation;
-
-  @override
-  void initState() {
-    super.initState();
-    _x = widget.item.x;
-    _y = widget.item.y;
-    _scale = widget.item.scale;
-    _rotation = widget.item.rotation;
-  }
-
-  void _commit() {
-    ref.read(currentSceneProvider.notifier).updateItem(
-      widget.index,
-      SceneLayoutItem(
-        furnitureId: widget.item.furnitureId,
-        x: _x, y: _y, scale: _scale, rotation: _rotation,
-      ),
-    );
-  }
+  const _FurnitureItemView({
+    required this.item,
+    required this.isSelected,
+    required this.baseSize,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, c) {
-      final w = c.maxWidth;
-      final h = c.maxHeight;
-      final centerX = _x * w;
-      final centerY = _y * h;
+    final itemSize = baseSize * item.scale;
 
-      return Positioned(
-        left: centerX - 50 * _scale,
-        top: centerY - 50 * _scale,
-        child: GestureDetector(
-          onPanUpdate: (d) {
-            setState(() {
-              _x = (_x + d.delta.dx / w).clamp(0.0, 1.0);
-              _y = (_y + d.delta.dy / h).clamp(0.0, 1.0);
-            });
-          },
-          onPanEnd: (_) => _commit(),
-          onScaleUpdate: (d) {
-            setState(() {
-              _scale = (_scale * d.scale).clamp(.3, 3.0);
-              _rotation += d.rotation;
-            });
-          },
-          onScaleEnd: (_) => _commit(),
-          child: Transform.rotate(
-            angle: _rotation,
-            child: Container(
-              width: 100 * _scale,
-              height: 100 * _scale,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 2,
-                ),
+    return Transform.rotate(
+      angle: item.rotation,
+      child: Stack(
+        children: [
+          Container(
+            width: itemSize,
+            height: itemSize,
+            decoration: isSelected
+                ? BoxDecoration(
+                    border: Border.all(color: Colors.blue, width: 2),
+                  )
+                : null,
+            child: CachedNetworkImage(
+              imageUrl: item.imageUrl ?? '',
+              placeholder: (context, url) => Container(
+                color: Colors.blue.withOpacity(0.5),
+                child: Center(child: Text(item.name, textAlign: TextAlign.center)),
               ),
-              alignment: Alignment.center,
-              child: const Icon(Icons.chair, size: 40),
+              errorWidget: (context, url, error) => Container(
+                color: Colors.red.withOpacity(0.5),
+                child: Center(child: Text(item.name, textAlign: TextAlign.center)),
+              ),
+              fit: BoxFit.contain,
             ),
           ),
-        ),
-      );
-    });
+          if (isSelected)
+            Positioned(
+              top: 0,
+              left: 0,
+              child: GestureDetector(
+                onTap: onDelete,
+                child: const CircleAvatar(
+                  radius: 12,
+                  backgroundColor: Colors.red,
+                  child: Icon(Icons.close, color: Colors.white, size: 16),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
+

@@ -1,21 +1,30 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:roomstyler/core/models/furniture.dart';
+import 'package:roomstyler/core/models/scene.dart';
+import 'package:roomstyler/state/scene_providers.dart';
 
-class CatalogScreen extends StatefulWidget {
+class CatalogScreen extends ConsumerStatefulWidget {
   const CatalogScreen({super.key});
 
   @override
-  State<CatalogScreen> createState() => _CatalogScreenState();
+  ConsumerState<CatalogScreen> createState() => _CatalogScreenState();
 }
 
-class _CatalogScreenState extends State<CatalogScreen> {
+class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   final _queryCtrl = TextEditingController();
   String _category = '전체';
-  final _categories = const ['전체','소파','테이블','의자','조명','수납'];
+  final _categories = const ['전체', '소파', '테이블', '의자', '조명', '수납'];
 
   @override
   Widget build(BuildContext context) {
+    final furnitureStream = FirebaseFirestore.instance
+        .collection('furnitures') // 'furnitures' 컬렉션 사용
+        .snapshots();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('가구 카탈로그'),
@@ -30,12 +39,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16,8,16,0),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: SearchBar(
               hintText: '가구/스타일 검색',
               leading: const Icon(Icons.search),
               controller: _queryCtrl,
-              onSubmitted: (_) => setState((){}),
+              onSubmitted: (_) => setState(() {}),
             ),
           ),
           const SizedBox(height: 8),
@@ -43,34 +52,76 @@ class _CatalogScreenState extends State<CatalogScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
-              children: _categories.map((c) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: ChoiceChip(
-                  label: Text(c),
-                  selected: _category == c,
-                  onSelected: (_) => setState(() => _category = c),
-                ),
-              )).toList(),
+              children: _categories
+                  .map((c) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ChoiceChip(
+                          label: Text(c),
+                          selected: _category == c,
+                          onSelected: (_) => setState(() => _category = c),
+                        ),
+                      ))
+                  .toList(),
             ),
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: .8,
-              ),
-              itemCount: 10, // TODO: 실제 데이터 바인딩
-              itemBuilder: (_, i) => _FurnitureCard(
-                title: '스칸디 의자 ${i+1}',
-                price: 89000 + i * 1000,
-                image: 'https://picsum.photos/seed/f$i/600/400',
-                onAdd: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('편집기에 가구가 추가되었습니다.')),
-                  );
-                },
-              ),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: furnitureStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('오류가 발생했습니다: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('가구가 없습니다.'));
+                }
+
+                final documents = snapshot.data!.docs;
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(12),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: .8,
+                  ),
+                  itemCount: documents.length,
+                  itemBuilder: (_, i) {
+                    final doc = documents[i];
+                    final furniture = Furniture.fromJson(
+                        doc.data() as Map<String, dynamic>, doc.id);
+                    return _FurnitureCard(
+                      title: furniture.name,
+                      price: furniture.price.toInt(),
+                      image: furniture.imageUrl ?? 'https://picsum.photos/600/400', // Placeholder
+                      onAdd: () {
+                        ref.read(currentSceneProvider.notifier).addItem(
+                              SceneLayoutItem(
+                                furnitureId: furniture.id,
+                                name: furniture.name, // name 추가
+                                imageUrl: furniture.imageUrl, // imageUrl 추가
+                                x: 0.5, // 기본 위치
+                                y: 0.5, // 기본 위치
+                              ),
+                            );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${furniture.name}이(가) 편집기에 추가되었습니다.'),
+                            action: SnackBarAction(
+                              label: '보기',
+                              onPressed: () => context.push('/editor'),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],

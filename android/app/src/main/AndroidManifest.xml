@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Android 13+ 사진 읽기 -->
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+  <!-- Android 12- 호환 -->
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+      android:maxSdkVersion="32" />
+  <!-- 카메라 -->
+  <uses-permission android:name="android.permission.CAMERA" />
     <application
         android:label="roomstyler"
         android:name="${applicationName}"

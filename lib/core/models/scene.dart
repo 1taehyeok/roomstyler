@@ -1,5 +1,7 @@
 class SceneLayoutItem {
   final String furnitureId;
+  final String name; // Add name
+  final String? imageUrl; // Add imageUrl
   final double x; // 0..1 (상대 좌표)
   final double y; // 0..1
   final double scale; // 배율
@@ -7,6 +9,8 @@ class SceneLayoutItem {
 
   SceneLayoutItem({
     required this.furnitureId,
+    required this.name,
+    this.imageUrl,
     required this.x,
     required this.y,
     this.scale = 1.0,
@@ -15,6 +19,8 @@ class SceneLayoutItem {
 
   factory SceneLayoutItem.fromJson(Map<String, dynamic> j) => SceneLayoutItem(
     furnitureId: j['furniture_id'],
+    name: j['name'],
+    imageUrl: j['image_url'],
     x: (j['x'] as num).toDouble(),
     y: (j['y'] as num).toDouble(),
     scale: (j['scale'] as num?)?.toDouble() ?? 1.0,
@@ -23,14 +29,38 @@ class SceneLayoutItem {
 
   Map<String, dynamic> toJson() => {
     'furniture_id': furnitureId,
+    'name': name,
+    'image_url': imageUrl,
     'x': x, 'y': y,
     'scale': scale,
     'rotation': rotation,
   };
+
+  // 누락되었던 copyWith 메소드
+  SceneLayoutItem copyWith({
+    String? furnitureId,
+    String? name,
+    String? imageUrl,
+    double? x,
+    double? y,
+    double? scale,
+    double? rotation,
+  }) {
+    return SceneLayoutItem(
+      furnitureId: furnitureId ?? this.furnitureId,
+      name: name ?? this.name,
+      imageUrl: imageUrl ?? this.imageUrl,
+      x: x ?? this.x,
+      y: y ?? this.y,
+      scale: scale ?? this.scale,
+      rotation: rotation ?? this.rotation,
+    );
+  }
 }
 
 class Scene {
   final String id;
+  final String? userId;
   final String roomId;
   final List<SceneLayoutItem> layout;
   final List<String> removedFurnitureIds;
@@ -41,6 +71,7 @@ class Scene {
 
   Scene({
     required this.id,
+    this.userId,
     required this.roomId,
     required this.layout,
     this.removedFurnitureIds = const [],
@@ -52,6 +83,7 @@ class Scene {
 
   factory Scene.fromJson(Map<String, dynamic> json, String id) => Scene(
     id: id,
+    userId: json['user_id'],
     roomId: json['room_id'],
     layout: ((json['layout'] ?? []) as List)
       .map((e) => SceneLayoutItem.fromJson(Map<String,dynamic>.from(e))).toList(),
@@ -63,6 +95,7 @@ class Scene {
   );
 
   Map<String, dynamic> toJson() => {
+    'user_id': userId,
     'room_id': roomId,
     'layout': layout.map((e) => e.toJson()).toList(),
     'removed_furniture_ids': removedFurnitureIds,
@@ -71,4 +104,28 @@ class Scene {
     'output_url': outputUrl,
     'created_at': createdAt.toIso8601String(),
   };
+
+  Scene copyWith({
+    String? id,
+    String? userId,
+    String? roomId,
+    List<SceneLayoutItem>? layout,
+    List<String>? removedFurnitureIds,
+    List<String>? addedFurnitureIds,
+    Map<String, dynamic>? renderParams,
+    String? outputUrl,
+    DateTime? createdAt,
+  }) {
+    return Scene(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      roomId: roomId ?? this.roomId,
+      layout: layout ?? this.layout,
+      removedFurnitureIds: removedFurnitureIds ?? this.removedFurnitureIds,
+      addedFurnitureIds: addedFurnitureIds ?? this.addedFurnitureIds,
+      renderParams: renderParams ?? this.renderParams,
+      outputUrl: outputUrl ?? this.outputUrl,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }
