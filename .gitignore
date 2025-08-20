@@ -1,9 +1,5 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
+/android/app/google-services.json
+
 .atom/
 .build/
 .buildlog/
