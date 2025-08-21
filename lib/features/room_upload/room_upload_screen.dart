@@ -2,6 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
+// import 'package:dio/dio.dart'; // 더 이상 필요하지 않습니다.
+// import 'package:flutter_dotenv/flutter_dotenv.dart'; // 더 이상 필요하지 않습니다.
+import 'package:http/http.dart' as http; // http 패키지 사용
+import 'dart:typed_data'; // Uint8List를 위해 필요
+import 'package:roomstyler/config.dart'; // Config 임포트
 
 class RoomUploadScreen extends StatefulWidget {
   const RoomUploadScreen({super.key});
@@ -15,6 +20,7 @@ class _RoomUploadScreenState extends State<RoomUploadScreen> {
   final _widthCtrl = TextEditingController();
   final _lengthCtrl = TextEditingController();
   final _heightCtrl = TextEditingController();
+  bool _isProcessing = false;
 
   Future<void> _pickImage(ImageSource src) async {
     final picker = ImagePicker();
@@ -89,16 +95,131 @@ class _RoomUploadScreenState extends State<RoomUploadScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          FilledButton.icon(
-            icon: const Icon(Icons.auto_fix_high),
-            label: const Text('가구 자동 제거 후 계속'),
-            onPressed: canContinue ? () {
-              // TODO: VEO3 API로 기존 가구 제거/인페인트 → 결과 저장
-              context.push('/editor');
-            } : null,
+          // 버튼들을 세로로 배치
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch, // 버튼들을 가로로 꽉 채움
+            children: [
+              // 1. AI 이미지 변형 버튼
+              FilledButton.icon(
+                icon: _isProcessing
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.auto_fix_high),
+                label: Text(_isProcessing ? '처리 중...' : '이미지 변형(Reimagine) 후 계속'),
+                onPressed: canContinue && !_isProcessing ? _processImage : null,
+              ),
+              const SizedBox(height: 12), // 버튼 사이 간격
+              // 2. 바로 편집기로 이동하는 버튼
+              OutlinedButton.icon(
+                icon: const Icon(Icons.arrow_forward), // 진행 아이콘
+                label: const Text('계속 (AI 없음)'), // 버튼 텍스트
+                onPressed: canContinue && !_isProcessing // 상태 조건 동일
+                    ? () {
+                        // 선택된 이미지 경로를 그대로 전달
+                        if (mounted && _image != null) {
+                          context.push('/editor', extra: _image!.path);
+                        }
+                      }
+                    : null,
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _processImage() async {
+    if (_image == null) return;
+
+    print('DEBUG: _processImage started');
+    print('DEBUG: Image path: ${_image!.path}'); 
+    // 파일 존재 여부 확인 
+    final imageFile = File(_image!.path);      
+    final exists = await imageFile.exists();      
+    print('DEBUG: Image file exists: $exists');
+
+    if (!exists) { 
+      print('DEBUG: Image file does not exist at the specified path.');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('이미지 파일을 찾을 수 없습니다.')),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      // 1. ClipDrop Reimagine API 정보
+      final String clipDropApiKey = Config.clipdropApiKey;
+      // final String clipDropApiUrl = 'https://clipdrop-api.co/inpaint/v1'; // 기존 URL
+      final String clipDropApiUrl = 'https://clipdrop-api.co/reimagine/v1/reimagine'; // 새 URL
+
+      if (clipDropApiKey.isEmpty) {
+        throw Exception('CLIPDROP_API_KEY가 설정되지 않았습니다.');
+      }
+
+      // 2. http.MultipartRequest 생성
+      final request = http.MultipartRequest('POST', Uri.parse(clipDropApiUrl));
+      request.headers['x-api-key'] = clipDropApiKey;
+      
+      // 3. 원본 이미지 파일 첨부 (필수 파라미터: image_file)
+      final imageBytes = await imageFile.readAsBytes();
+      request.files.add(http.MultipartFile.fromBytes('image_file', imageBytes, filename: 'upload.jpg'));
+      
+      // 4. 'prompt' 파라미터 제거: Reimagine API는 prompt를 사용하지 않습니다.
+      // String prompt = 'Remove all furniture and objects...';
+      // request.fields['prompt'] = prompt;
+      
+      // 5. API 호출
+      print('ClipDrop Reimagine API 호출 시작...');
+      final response = await request.send();
+      print('ClipDrop API 응답 상태 코드: ${response.statusCode}');
+
+      // 6. 응답 처리
+      if (response.statusCode == 200) {
+        // 성공 시, 응답 바디에 생성된 이미지(JPEG)가 포함됨
+        final imageBytes = await response.stream.toBytes();
+        
+        // 7. 처리된 이미지를 임시 파일로 저장
+        final tempDir = Directory.systemTemp;
+        final tempFile = File('${tempDir.path}/reimagined_image.jpg');
+        await tempFile.writeAsBytes(imageBytes);
+        final processedImagePath = tempFile.path;
+        print('변형된 이미지가 임시 파일에 저장됨: $processedImagePath');
+
+        // 8. 처리된 이미지 경로를 /editor 화면으로 전달
+        if (mounted) {
+          context.push('/editor', extra: processedImagePath);
+        }
+      } else {
+        // 9. 에러 처리
+        final error = await response.stream.bytesToString();
+        print('ClipDrop API 에러: ${response.statusCode}, $error');
+        throw Exception('API 에러: ${response.statusCode}, $error');
+      }
+
+    } catch (e, s) {
+      print('이미지 처리 중 에러: $e');
+      print('Stack trace: $s');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('이미지 처리 중 오류가 발생했습니다: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
   }
 }

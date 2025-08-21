@@ -6,9 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:roomstyler/core/models/scene.dart';
 import 'package:roomstyler/state/scene_providers.dart';
 import 'package:uuid/uuid.dart';
+// import 'package:dio/dio.dart'; // 더 이상 필요하지 않습니다.
+import 'dart:io';
+import 'dart:typed_data'; // Uint8List를 위해 필요
+import 'package:roomstyler/services/gemini_api_service.dart'; // 새로 만든 서비스 임포트
 
 class EditorScreen extends ConsumerStatefulWidget {
-  const EditorScreen({super.key});
+  final String? imagePath;
+  const EditorScreen({super.key, this.imagePath});
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -17,6 +22,7 @@ class EditorScreen extends ConsumerStatefulWidget {
 class _EditorScreenState extends ConsumerState<EditorScreen> {
   int? _selectedItemIndex;
   bool _isSaving = false;
+  bool _isAutoArranging = false; // AI 자동 배치 진행 상태
 
   // --- 제스처 상태 저장을 위한 변수 ---
   // 아이템의 초기 상태
@@ -62,6 +68,54 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
+  // --- AI 자동 배치 기능 (Gemini API 사용) ---
+  Future<void> _autoArrange() async {
+    setState(() => _isAutoArranging = true);
+    try {
+      final scene = ref.read(currentSceneProvider);
+
+      // 1. 배경 이미지 파일을 Uint8List로 읽기
+      if (widget.imagePath == null) {
+        throw Exception('배경 이미지 경로가 없습니다.');
+      }
+      final imageFile = File(widget.imagePath!);
+      if (!await imageFile.exists()) {
+        throw Exception('배경 이미지 파일을 찾을 수 없습니다.');
+      }
+      final Uint8List imageBytes = await imageFile.readAsBytes();
+
+      // 2. GeminiApiService 호출
+      final arrangedItems = await GeminiApiService.getFurniturePlacement(
+        imageBytes: imageBytes,
+        scene: scene,
+      );
+
+      // 3. 응답 처리
+      if (arrangedItems != null) {
+        // 씬의 레이아웃을 새롭게 배치된 아이템들로 교체
+        ref.read(currentSceneProvider.notifier).state = scene.copyWith(layout: arrangedItems);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('AI 자동 배치가 완료되었습니다!')),
+          );
+        }
+      } else {
+        throw Exception('AI로부터 배치 결과를 받지 못했습니다.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI 자동 배치 중 오류가 발생했습니다: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAutoArranging = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scene = ref.watch(currentSceneProvider);
@@ -70,6 +124,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       appBar: AppBar(
         title: const Text('방 꾸미기'),
         actions: [
+          // 저장 버튼
           if (_isSaving)
             const Padding(
               padding: EdgeInsets.only(right: 16.0),
@@ -79,6 +134,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             IconButton(
               icon: const Icon(Icons.save),
               onPressed: _saveScene,
+            ),
+          // AI 자동 배치 버튼
+          if (_isAutoArranging)
+            const Padding(
+              padding: EdgeInsets.only(right: 16.0),
+              child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator())),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.auto_fix_high), // 적절한 아이콘 선택
+              onPressed: _autoArrange, // _autoArrange 메소드 연결
+              tooltip: 'AI 자동 배치',
             ),
         ],
       ),
@@ -91,12 +158,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
             return Stack(
               children: [
-                Container(
-                  color: Colors.grey[200],
-                  width: double.infinity,
-                  height: double.infinity,
-                  child: const Center(child: Text('여기에 방 배경이 표시됩니다.')),
-                ),
+                widget.imagePath != null
+                    ? Image.file(
+                        File(widget.imagePath!),
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.contain,
+                      )
+                    : Container(
+                        color: Colors.grey[200],
+                        width: double.infinity,
+                        height: double.infinity,
+                        child: const Center(child: Text('여기에 방 배경이 표시됩니다.')),
+                      ),
                 ...scene.layout.asMap().entries.map((entry) {
                   int index = entry.key;
                   SceneLayoutItem item = entry.value;

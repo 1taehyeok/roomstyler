@@ -17,7 +17,13 @@ final router = GoRouter(
     GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
     GoRoute(path: '/upload', builder: (_, __) => const RoomUploadScreen()),
     GoRoute(path: '/catalog', builder: (_, __) => const CatalogScreen()),
-    GoRoute(path: '/editor', builder: (_, __) => const EditorScreen()),
+    GoRoute(
+  path: '/editor',
+  builder: (context, state) {
+    final imagePath = state.extra as String?;
+    return EditorScreen(imagePath: imagePath);
+  },
+),
     GoRoute(path: '/preview', builder: (_, __) => const PreviewShareScreen()),
     GoRoute(path: '/signin', builder: (_, __) => const SignInScreen()),
     GoRoute(path: '/signup', builder: (_, __) => const SignUpScreen()),

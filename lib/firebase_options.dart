@@ -64,6 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '738981562226',
     projectId: 'room-design-app-9ba79',
     storageBucket: 'room-design-app-9ba79.firebasestorage.app',
+    iosClientId: '738981562226-gmou0k062nt67e3s65nc66tfgj0t0dbd.apps.googleusercontent.com',
     iosBundleId: 'com.example.roomstyler',
   );
 
@@ -73,6 +74,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '738981562226',
     projectId: 'room-design-app-9ba79',
     storageBucket: 'room-design-app-9ba79.firebasestorage.app',
+    iosClientId: '738981562226-gmou0k062nt67e3s65nc66tfgj0t0dbd.apps.googleusercontent.com',
     iosBundleId: 'com.example.roomstyler',
   );
 
@@ -85,4 +87,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'room-design-app-9ba79.firebasestorage.app',
     measurementId: 'G-FCPKXYY04Y',
   );
+
 }
