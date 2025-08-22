@@ -1,1 +1,49 @@
- Unable to process request due to missing initial state. This may happen if browser sessionStorage is inaccessible or accidentally cleared. Some specific scenarios are - 1) Using IDP-Initiated SAML SSO. 2) Using signInWithRedirect in a storage-partitioned browser environment.
+At least listener of the
+
+StateNotifier Instance of
+
+'SceneController' threw an exception
+
+when the notifier tried to update its state.
+
+The exceptions thrown are:
+
+Tried to modify a provider while the widget tree was building. If you are encountering this error, chances are you tried to modify a provider
+
+in a widget life-cycle, such as
+
+but not limited to:
+
+build
+
+initState
+
+dispose
+
+didUpdateWidget
+
+didChangeDependencies
+
+Modifying a provider inside those life-cycles is not allowed, as it could
+
+lead to an inconsistent UI state. For example, two widgets could
+
+listen to the
+
+same provider, but incorrectly receive different states.
+
+To fix this problem, you have one of two solutions:
+
+(preferred) Move the logic for modifying your provider outside of a widget
+
+life-cycle. For example, maybe you could update your provider inside a button's
+
+onPressed instead.
+
+Delay your modification, such as by encapsulating the modification
+
+in a `Future(() {...})`. This will perform your update after the widget tree is done building.
+
+#0 _UncontrolledProviderScop eElement._debugCanModifyProviders (package:flutter_riverpod/src/ framework.dart:349:7)
+
+#1 ProviderElementBase._noti fyListeners.<anonymous closure>

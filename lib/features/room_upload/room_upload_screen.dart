@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http; // http 패키지 사용
 import 'dart:typed_data'; // Uint8List를 위해 필요
 import 'package:roomstyler/config.dart'; // Config 임포트
+import 'new_project_initializer.dart'; // 새로 추가한 파일 임포트
 
 class RoomUploadScreen extends StatefulWidget {
   const RoomUploadScreen({super.key});
@@ -31,103 +32,105 @@ class _RoomUploadScreenState extends State<RoomUploadScreen> {
   @override
   Widget build(BuildContext context) {
     final canContinue = _image != null;
-    return Scaffold(
-      appBar: AppBar(title: const Text('방 업로드')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: Column(
+    return NewProjectInitializer( // Wrap the Scaffold with NewProjectInitializer
+      child: Scaffold(
+        appBar: AppBar(title: const Text('방 업로드')),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Card(
+              child: Column(
+                children: [
+                  AspectRatio(
+                    aspectRatio: 16/9,
+                    child: _image == null
+                      ? Center(child: Text('방 사진을 업로드하세요',
+                          style: Theme.of(context).textTheme.bodyLarge))
+                      : Image.file(_image!, fit: BoxFit.cover),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.photo_library_outlined),
+                          label: const Text('갤러리'),
+                          onPressed: () => _pickImage(ImageSource.gallery),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.photo_camera_outlined),
+                          label: const Text('카메라'),
+                          onPressed: () => _pickImage(ImageSource.camera),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text('방 치수(선택)', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Row(
               children: [
-                AspectRatio(
-                  aspectRatio: 16/9,
-                  child: _image == null
-                    ? Center(child: Text('방 사진을 업로드하세요',
-                        style: Theme.of(context).textTheme.bodyLarge))
-                    : Image.file(_image!, fit: BoxFit.cover),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.photo_library_outlined),
-                        label: const Text('갤러리'),
-                        onPressed: () => _pickImage(ImageSource.gallery),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.photo_camera_outlined),
-                        label: const Text('카메라'),
-                        onPressed: () => _pickImage(ImageSource.camera),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                Expanded(child: TextField(
+                  controller: _widthCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: '가로 (cm)'),
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(
+                  controller: _lengthCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: '세로 (cm)'),
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(
+                  controller: _heightCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: '높이 (cm)'),
+                )),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-          Text('방 치수(선택)', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: TextField(
-                controller: _widthCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '가로 (cm)'),
-              )),
-              const SizedBox(width: 8),
-              Expanded(child: TextField(
-                controller: _lengthCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '세로 (cm)'),
-              )),
-              const SizedBox(width: 8),
-              Expanded(child: TextField(
-                controller: _heightCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '높이 (cm)'),
-              )),
-            ],
-          ),
-          const SizedBox(height: 24),
-          // 버튼들을 세로로 배치
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch, // 버튼들을 가로로 꽉 채움
-            children: [
-              // 1. AI 이미지 변형 버튼
-              FilledButton.icon(
-                icon: _isProcessing
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.auto_fix_high),
-                label: Text(_isProcessing ? '처리 중...' : '이미지 변형(Reimagine) 후 계속'),
-                onPressed: canContinue && !_isProcessing ? _processImage : null,
-              ),
-              const SizedBox(height: 12), // 버튼 사이 간격
-              // 2. 바로 편집기로 이동하는 버튼
-              OutlinedButton.icon(
-                icon: const Icon(Icons.arrow_forward), // 진행 아이콘
-                label: const Text('계속 (AI 없음)'), // 버튼 텍스트
-                onPressed: canContinue && !_isProcessing // 상태 조건 동일
-                    ? () {
-                        // 선택된 이미지 경로를 그대로 전달
-                        if (mounted && _image != null) {
-                          context.push('/editor', extra: _image!.path);
+            const SizedBox(height: 24),
+            // 버튼들을 세로로 배치
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch, // 버튼들을 가로로 꽉 채움
+              children: [
+                // 1. AI 이미지 변형 버튼
+                FilledButton.icon(
+                  icon: _isProcessing
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.auto_fix_high),
+                  label: Text(_isProcessing ? '처리 중...' : '이미지 변형(Reimagine) 후 계속'),
+                  onPressed: canContinue && !_isProcessing ? _processImage : null,
+                ),
+                const SizedBox(height: 12), // 버튼 사이 간격
+                // 2. 바로 편집기로 이동하는 버튼
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.arrow_forward), // 진행 아이콘
+                  label: const Text('계속 (AI 없음)'), // 버튼 텍스트
+                  onPressed: canContinue && !_isProcessing // 상태 조건 동일
+                      ? () {
+                          // 선택된 이미지 경로를 그대로 전달
+                          if (mounted && _image != null) {
+                            context.push('/editor', extra: _image!.path);
+                          }
                         }
-                      }
-                    : null,
-              ),
-            ],
-          ),
-        ],
+                      : null,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
