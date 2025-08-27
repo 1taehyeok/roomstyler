@@ -1,201 +1,264 @@
 // lib/features/editor/_editor_canvas.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // CachedNetworkImage 임포트 추가
 import 'package:roomstyler/core/models/scene.dart';
 import 'package:roomstyler/state/scene_providers.dart';
 import 'dart:io';
-import 'dart:async'; // Timer를 사용하기 위해 필요
-import 'dart:math'; // sqrt를 사용하기 위해 필요
-import '_furniture_item_view.dart'; // 가구 아이템 표시 위젯 임포트
+import 'dart:math';
+import '_furniture_item_view.dart';
 
-/// 편집기의 주요 캔버스를 표시하는 위젯입니다.
-/// 배경 이미지와 가구 아이템들을 표시하고, 사용자의 터치 이벤트를 처리합니다.
 class EditorCanvas extends ConsumerStatefulWidget {
-  final String? backgroundImage; // 배경 이미지 경로
-  final VoidCallback onBackgroundTap; // 배경을 탭했을 때 호출되는 콜백
-
+  final String? backgroundImage;
+  final VoidCallback onBackgroundTap;
   const EditorCanvas({
     super.key,
     required this.backgroundImage,
     required this.onBackgroundTap,
   });
-
   @override
-  ConsumerState<EditorCanvas> createState() => _EditorCanvasState();
+  ConsumerState createState() => _EditorCanvasState();
 }
 
 class _EditorCanvasState extends ConsumerState<EditorCanvas> {
   int? _selectedItemIndex;
-  // --- 제스처 상태 저장을 위한 변수 ---
-  // 아이템의 초기 상태
-  var _itemInitialState = SceneLayoutItem(furnitureId: '', name: '', x: 0, y: 0);
-  // 제스처 시작 시 손가락의 절대 위치
-  Offset _gestureStartPoint = Offset.zero;
+  SceneLayoutItem? _originalItemOnDragStart;
+  int? _draggingItemIndex;
 
-  // --- Undo/Redo 디바운싱을 위한 Timer ---
-  Timer? _updateDebounceTimer;
-  // 디바운스 지연 시간 (밀리초)
-  static const int _debounceDurationMs = 500;
-
-  void _updateItem(int index, SceneLayoutItem newItem) {
-    ref.read(currentSceneProvider.notifier).updateItem(index, newItem);
-  }
-
-  @override
-  void dispose() {
-    // 위젯이 dispose될 때 Timer도 취소
-    _updateDebounceTimer?.cancel();
-    super.dispose();
-  }
+  Offset _dragStartOffset = Offset.zero;
+  Offset _itemStartOffset = Offset.zero;
+  double _startScale = 1.0;
+  double _startRotation = 0.0;
+  final trashKey = GlobalKey();
+  bool _isTrashVisible = false;
+  bool _isTrashHighlighted = false;
 
   @override
   Widget build(BuildContext context) {
-    final scene = ref.watch(currentSceneProvider);
-
-    return GestureDetector(
-      onTap: widget.onBackgroundTap, // 배경 탭 시 콜백 호출
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final canvasWidth = constraints.maxWidth;
-          final canvasHeight = constraints.maxHeight;
-
-          return DragTarget<Map<String, dynamic>>(
-            builder: (context, candidateData, rejectedData) {
-              // 드래그 중인 아이템이 캔버스 위에 있는지 판단
-              final isDragOverCanvas = candidateData.isNotEmpty;
-              return Stack(
-                children: [
-                  // 배경 이미지
-                  widget.backgroundImage != null
-                      ? Image.file(
-                          File(widget.backgroundImage!),
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.contain,
-                        )
-                      : Container(
-                          color: Colors.grey[200],
-                          width: double.infinity,
-                          height: double.infinity,
-                          child: const Center(child: Text('여기에 방 배경이 표시됩니다.')),
-                        ),
-                  // 드래그 중일 때 캔버스 상단에 휴지통 아이콘 표시
-                  if (isDragOverCanvas)
-                    const Positioned(
-                      top: 20,
-                      left: 0,
-                      right: 0,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Icon(
-                          Icons.delete,
-                          size: 40,
-                          color: Colors.red,
-                        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Listener(
+          onPointerDown: (_) {
+            // 배경 탭 시 선택 해제
+            if (_isTrashVisible == false) {
+              setState(() {
+                _selectedItemIndex = null;
+              });
+            }
+          },
+          child: Stack(
+            children: [
+              // 배경 이미지
+              if (widget.backgroundImage != null)
+                Image.file(
+                  File(widget.backgroundImage!),
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.contain,
+                )
+              else
+                Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  color: Colors.grey[200],
+                  child: const Center(child: Text('여기에 방 배경이 표시됩니다.')),
+                ),
+              // 휴지통 아이콘
+              IgnorePointer(
+                ignoring: !_isTrashVisible,
+                child: Opacity(
+                  opacity: _isTrashVisible ? 1.0 : 0.0,
+                  child: Positioned(
+                    top: 20,
+                    left: 0,
+                    right: 0,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Icon(
+                        Icons.delete,
+                        key: trashKey,
+                        size: _isTrashHighlighted ? 50 : 40,
+                        color: _isTrashHighlighted ? Colors.redAccent : Colors.red,
                       ),
                     ),
-                  // 가구 아이템들
-                  ...scene.layout.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    SceneLayoutItem item = entry.value;
-                    bool isSelected = _selectedItemIndex == index;
-                    const itemBaseSize = 100.0;
+                  ),
+                ),
+              ),
 
-                    return Positioned(
-                      left: item.x * canvasWidth - (itemBaseSize * item.scale / 2),
-                      top: item.y * canvasHeight - (itemBaseSize * item.scale / 2),
-                      child: Draggable<Map<String, dynamic>>(
-                        data: {'item': item, 'index': index}, // 드래그 데이터 (가구와 인덱스)
-                        feedback: Transform.rotate(
-                          angle: item.rotation,
-                          child: Container(
-                            width: itemBaseSize * item.scale * 0.8, // 피드백 크기 축소
-                            height: itemBaseSize * item.scale * 0.8,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.blue, width: 2),
-                            ),
-                            child: CachedNetworkImage(
-                              imageUrl: item.imageUrl ?? '',
-                              placeholder: (context, url) => Container(
-                                color: Colors.blue.withOpacity(0.5),
-                                child: Center(child: Text(item.name, textAlign: TextAlign.center)),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.red.withOpacity(0.5),
-                                child: Center(child: Text(item.name, textAlign: TextAlign.center)),
-                              ),
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                        childWhenDragging: Opacity(
-                          opacity: 0.5, // 드래그 중 원래 위치는 반투명
-                          child: FurnitureItemView(
-                            item: item,
-                            isSelected: isSelected,
-                            baseSize: itemBaseSize,
-                            onDelete: () {
-                              ref.read(currentSceneProvider.notifier).removeItem(index);
-                              setState(() => _selectedItemIndex = null);
-                            },
-                          ),
-                        ),
-                        child: FurnitureItemView(
-                          item: item,
-                          isSelected: isSelected,
-                          baseSize: itemBaseSize,
-                          onDelete: () {
-                            ref.read(currentSceneProvider.notifier).removeItem(index);
-                            setState(() => _selectedItemIndex = null);
-                          },
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              );
-            },
-            onAcceptWithDetails: (details) {
-              // --- 드롭 좌표 검증 로직 ---
-              // 1. 드롭된 위치의 Offset 가져오기
-              final Offset dropOffset = details.offset;
-              
-              // 2. 휴지통 아이콘의 중앙 좌표 계산 (대략적으로)
-              // 아이콘이 Positioned(top: 20)이고, Align(topCenter)이므로,
-              // 아이콘의 중앙 x좌표는 캔버스 너비의 절반.
-              // 아이콘의 중앙 y좌표는 top(20) + size(40)/2 = 40.
-              final double iconCenterX = constraints.maxWidth / 2.0;
-              final double iconCenterY = 20.0 + (40.0 / 2.0); // Positioned.top + Icon.size/2
-              const double iconRadius = 40.0 / 2.0; // Icon.size / 2
+              // 가구 아이템들
+              ..._buildFurnitureItems(constraints),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-              // 3. 드롭 좌표와 아이콘 중앙 좌표 사이의 거리 계산
-              final double dx = dropOffset.dx - iconCenterX;
-              final double dy = dropOffset.dy - iconCenterY;
-              final double distance = sqrt(dx * dx + dy * dy);
+  List<Widget> _buildFurnitureItems(BoxConstraints constraints) {
+    final scene = ref.watch(currentSceneProvider);
+    final canvasWidth = constraints.maxWidth;
+    final canvasHeight = constraints.maxHeight;
+    return scene.layout.asMap().entries.map((entry) {
+      final index = entry.key;
+      final item = entry.value;
+      final isSelectedForEditing = _selectedItemIndex == index && !_isTrashVisible;
+      final isSelectedForDeleting = _draggingItemIndex == index && _isTrashVisible;
 
-              // 4. 거리가 허용 반지름 이내인지 확인
-              if (distance <= iconRadius) {
-                final Map<String, dynamic> data = details.data;
-                final int index = data['index'] as int;
-                final SceneLayoutItem item = data['item'] as SceneLayoutItem;
+      const itemBaseSize = 100.0;
+      final scale = isSelectedForDeleting ? 0.9 : 1.0;
 
-                // 씬에서 가구 삭제
-                ref.read(currentSceneProvider.notifier).removeItem(index);
-                // 선택 해제
-                setState(() => _selectedItemIndex = null);
-                // 사용자 피드백
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${item.name}이(가) 삭제되었습니다.')),
-                );
-              } else {
-                // 드롭 위치가 휴지통 아이콘 영역 밖이면 아무것도 하지 않음
-                // 필요하다면 사용자에게 알림을 줄 수 있음
-              }
-            },
+      return Positioned(
+        left: item.x * canvasWidth - (itemBaseSize * item.scale * scale / 2),
+        top: item.y * canvasHeight - (itemBaseSize * item.scale * scale / 2),
+        child: Transform.scale(
+          scale: scale,
+          child: _buildFurnitureItem(
+            item,
+            index,
+            isSelectedForEditing,
+            itemBaseSize,
+            canvasWidth,
+            canvasHeight,
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildFurnitureItem(
+    SceneLayoutItem item,
+    int index,
+    bool isSelected,
+    double baseSize,
+    double canvasWidth,
+    double canvasHeight,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        if (_isTrashVisible) return;
+        setState(() {
+          _selectedItemIndex = index;
+        });
+      },
+
+      // 삭제 제스처 (LongPress)
+      onLongPressStart: (details) {
+        setState(() {
+          _selectedItemIndex = null;
+          _isTrashVisible = true;
+          _draggingItemIndex = index;
+          _originalItemOnDragStart = item;
+          _dragStartOffset = details.globalPosition;
+          _itemStartOffset = Offset(item.x * canvasWidth, item.y * canvasHeight);
+        });
+      },
+
+      onLongPressMoveUpdate: (details) {
+        if (!_isTrashVisible || _draggingItemIndex != index) return;
+
+        final delta = details.globalPosition - _dragStartOffset;
+        final newX = (_itemStartOffset.dx + delta.dx) / canvasWidth;
+        final newY = (_itemStartOffset.dy + delta.dy) / canvasHeight;
+
+        ref.read(currentSceneProvider.notifier).updateItem(
+              _draggingItemIndex!,
+              _originalItemOnDragStart!.copyWith(x: newX.clamp(0.0, 1.0), y: newY.clamp(0.0, 1.0)),
+            );
+        _updateTrashHighlight(details.globalPosition);
+      },
+
+      onLongPressUp: () {
+        if (!_isTrashVisible || _draggingItemIndex != index) return;
+
+        if (_isTrashHighlighted) {
+          // 삭제 처리
+          ref.read(currentSceneProvider.notifier).removeItem(_draggingItemIndex!);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${_originalItemOnDragStart?.name}(이)가 삭제되었습니다.')),
           );
+        } else {
+          // 삭제되지 않았다면 원위치로 복구
+          ref.read(currentSceneProvider.notifier).updateItem(
+                _draggingItemIndex!,
+                _originalItemOnDragStart!,
+              );
+        }
+        
+        // 모든 상태 초기화
+        setState(() {
+          _isTrashVisible = false;
+          _isTrashHighlighted = false;
+          _draggingItemIndex = null;
+          _originalItemOnDragStart = null;
+          _selectedItemIndex = null;
+        });
+      },
+
+      // 일반 제스처 (Scale)
+      onScaleStart: (details) {
+        if (_isTrashVisible) return;
+        setState(() {
+          _selectedItemIndex = index;
+          _startScale = item.scale;
+          _startRotation = item.rotation;
+          _dragStartOffset = details.focalPoint;
+          _itemStartOffset = Offset(item.x * canvasWidth, item.y * canvasHeight);
+        });
+      },
+      onScaleUpdate: (details) {
+        if (_isTrashVisible || _selectedItemIndex != index) return;
+
+        if (details.pointerCount == 1) {
+          final delta = details.focalPoint - _dragStartOffset;
+          final newX = (_itemStartOffset.dx + delta.dx) / canvasWidth;
+          final newY = (_itemStartOffset.dy + delta.dy) / canvasHeight;
+          ref.read(currentSceneProvider.notifier).updateItem(
+                index,
+                item.copyWith(x: newX.clamp(0.0, 1.0), y: newY.clamp(0.0, 1.0)),
+              );
+        } else {
+          final newScale = (_startScale * details.scale).clamp(0.5, 3.0);
+          final newRotation = _startRotation + details.rotation;
+          ref.read(currentSceneProvider.notifier).updateItem(
+                index,
+                item.copyWith(scale: newScale, rotation: newRotation),
+              );
+        }
+      },
+      onScaleEnd: (details) {
+        if (_isTrashVisible) return;
+      },
+
+      child: FurnitureItemView(
+        item: item,
+        isSelected: isSelected,
+        baseSize: baseSize,
+        onDelete: () {
+          ref.read(currentSceneProvider.notifier).removeItem(index);
+          setState(() {
+            _selectedItemIndex = null;
+          });
         },
       ),
     );
+  }
+
+  void _updateTrashHighlight(Offset globalPosition) {
+    if (!_isTrashVisible) return;
+    final renderBox = trashKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final trashSize = renderBox.size;
+    final trashPosition = renderBox.localToGlobal(Offset.zero);
+    final iconCenterX = trashPosition.dx + trashSize.width / 2;
+    final iconCenterY = trashPosition.dy + trashSize.height / 2;
+    final iconRadius = trashSize.width;
+    final dx = globalPosition.dx - iconCenterX;
+    final dy = globalPosition.dy - iconCenterY;
+    final distance = sqrt(dx * dx + dy * dy);
+    
+    if (_isTrashHighlighted != (distance <= iconRadius)) {
+      setState(() {
+        _isTrashHighlighted = distance <= iconRadius;
+      });
+    }
   }
 }

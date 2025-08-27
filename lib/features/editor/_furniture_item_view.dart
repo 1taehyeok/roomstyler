@@ -11,7 +11,7 @@ class FurnitureItemView extends StatelessWidget {
   final VoidCallback onDelete;
 
   const FurnitureItemView({
-    super.key, // key 추가
+    super.key,
     required this.item,
     required this.isSelected,
     required this.baseSize,
@@ -24,43 +24,30 @@ class FurnitureItemView extends StatelessWidget {
 
     return Transform.rotate(
       angle: item.rotation,
-      child: Stack(
-        children: [
-          Container(
-            width: itemSize,
-            height: itemSize,
-            decoration: isSelected
-                ? BoxDecoration(
-                    border: Border.all(color: Colors.blue, width: 2),
-                  )
-                : null,
-            child: CachedNetworkImage(
-              imageUrl: item.imageUrl ?? '',
-              placeholder: (context, url) => Container(
-                color: Colors.blue.withOpacity(0.5),
-                child: Center(child: Text(item.name, textAlign: TextAlign.center)),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: Colors.red.withOpacity(0.5),
-                child: Center(child: Text(item.name, textAlign: TextAlign.center)),
-              ),
-              fit: BoxFit.contain,
-            ),
+      child: Container(
+        width: itemSize,
+        height: itemSize,
+        decoration: BoxDecoration(
+          // ✅ 선택 시 배경 추가
+          color: isSelected ? Colors.blue.withOpacity(0.2) : null,
+          // ✅ 선택 시 테두리 추가
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.transparent,
+            width: isSelected ? 3 : 0,
           ),
-          if (isSelected)
-            Positioned(
-              top: 0,
-              left: 0,
-              child: GestureDetector(
-                onTap: onDelete,
-                child: const CircleAvatar(
-                  radius: 12,
-                  backgroundColor: Colors.red,
-                  child: Icon(Icons.close, color: Colors.white, size: 16),
-                ),
-              ),
-            ),
-        ],
+        ),
+        child: CachedNetworkImage(
+          imageUrl: item.imageUrl ?? '',
+          placeholder: (context, url) => Container(
+            color: Colors.blue.withOpacity(0.5),
+            child: Center(child: Text(item.name, textAlign: TextAlign.center)),
+          ),
+          errorWidget: (context, url, error) => Container(
+            color: Colors.red.withOpacity(0.5),
+            child: Center(child: Text(item.name, textAlign: TextAlign.center)),
+          ),
+          fit: BoxFit.contain,
+        ),
       ),
     );
   }
