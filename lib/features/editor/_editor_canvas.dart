@@ -147,6 +147,8 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
 
       // 삭제 제스처 (LongPress)
       onLongPressStart: (details) {
+        // 드래그 작업 시작: 히스토리에 한 번만 기록되도록 배치
+        ref.read(currentSceneProvider.notifier).startOperation();
         setState(() {
           _selectedItemIndex = null;
           _isTrashVisible = true;
@@ -187,6 +189,8 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
                 _originalItemOnDragStart!,
               );
         }
+        // 드래그 작업 종료: 작업 전 상태를 히스토리에 푸시
+        ref.read(currentSceneProvider.notifier).endOperation();
         
         // 모든 상태 초기화
         setState(() {
@@ -201,6 +205,8 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
       // 일반 제스처 (Scale)
       onScaleStart: (details) {
         if (_isTrashVisible) return;
+        // 이동/스케일/회전 작업 시작
+        ref.read(currentSceneProvider.notifier).startOperation();
         setState(() {
           _selectedItemIndex = index;
           _startScale = item.scale;
@@ -234,6 +240,8 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
       },
       onScaleEnd: (details) {
         if (_isTrashVisible) return;
+        // 이동/스케일/회전 작업 종료
+        ref.read(currentSceneProvider.notifier).endOperation();
       },
 
       child: FurnitureItemView(

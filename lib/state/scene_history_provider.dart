@@ -28,33 +28,35 @@ class SceneHistoryController extends Notifier<List<Scene>> {
   }
 
   /// 마지막 작업을 되돌립니다 (Undo).
+  /// [current]는 되돌리기 직전의 현재 상태로, Redo 스택에 저장됩니다.
   /// 성공하면 되돌릴 상태를 반환하고, 실패하면 null을 반환합니다.
-  Scene? undo() {
+  Scene? undo(Scene current) {
     if (_undoStack.isEmpty) {
       return null; // 되돌릴 상태가 없음
     }
     // Undo 스택에서 상태를 꺼냄
-    final undoneState = _undoStack.removeLast();
-    // 꺼낸 상태를 Redo 스택에 저장
-    _redoStack.add(undoneState);
+    final previousState = _undoStack.removeLast();
+    // 현재 상태를 Redo 스택에 저장하여 다시 실행 시 복구 가능하게 함
+    _redoStack.add(current);
     // 상태가 변경되었음을 Provider에 알림
     state = [..._undoStack];
-    return undoneState;
+    return previousState;
   }
 
   /// 마지막 Undo 작업을 다시 실행합니다 (Redo).
+  /// [current]는 Redo 직전의 현재 상태로, Undo 스택에 저장됩니다.
   /// 성공하면 다시 실행할 상태를 반환하고, 실패하면 null을 반환합니다.
-  Scene? redo() {
+  Scene? redo(Scene current) {
     if (_redoStack.isEmpty) {
       return null; // 다시 실행할 상태가 없음
     }
     // Redo 스택에서 상태를 꺼냄
-    final redoneState = _redoStack.removeLast();
-    // 꺼낸 상태를 Undo 스택에 저장
-    _undoStack.add(redoneState);
+    final nextState = _redoStack.removeLast();
+    // 현재 상태를 Undo 스택에 저장하여 다시 실행 취소 가능하게 함
+    _undoStack.add(current);
     // 상태가 변경되었음을 Provider에 알림
     state = [..._undoStack];
-    return redoneState;
+    return nextState;
   }
 
   /// Undo가 가능한지 여부를 반환합니다.

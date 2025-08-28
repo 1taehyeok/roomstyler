@@ -24,30 +24,28 @@ class SceneController extends StateNotifier<Scene> {
 
   // --- Undo/Redo 작업 단위 제어를 위한 필드 ---
   bool _isOperationActive = false;
-  Scene? _pendingOperationState;
+  // 드래그/제스처가 시작되기 직전의 원본 상태를 저장합니다.
+  Scene? _operationOriginalState;
 
   /// 연속된 작업(예: 제스처)의 시작을 알립니다.
   void startOperation() {
+    if (_isOperationActive) return;
     _isOperationActive = true;
-    _pendingOperationState = state;
+    // 작업 시작 직전 상태를 저장 (Undo 시 돌아갈 상태)
+    _operationOriginalState = state;
   }
 
   /// 연속된 작업(예: 제스처)의 종료를 알리고, 히스토리에 저장합니다.
   void endOperation() {
-    if (_isOperationActive && _pendingOperationState != null) {
-      ref.read(sceneHistoryProvider.notifier).push(_pendingOperationState!);
-      _isOperationActive = false;
-      _pendingOperationState = null;
+    if (_isOperationActive && _operationOriginalState != null) {
+      // 작업 전 상태를 한 번만 히스토리에 저장하여 Undo 시 정확히 되돌아가도록 함
+      ref.read(sceneHistoryProvider.notifier).push(_operationOriginalState!);
     }
+    _isOperationActive = false;
+    _operationOriginalState = null;
   }
 
-  /// 연속된 작업 중 상태를 업데이트합니다. (디바운싱 대상)
-  /// 실제 히스토리 저장은 [endOperation]에서 이루어집니다.
-  void _updatePendingState(Scene newState) {
-    if (_isOperationActive) {
-      _pendingOperationState = newState;
-    }
-  }
+  // 연속 작업 중에는 히스토리를 업데이트하지 않습니다. (endOperation에서 한 번 처리)
 
   /// 씬 전체를 새로운 씬으로 교체합니다.
   /// 히스토리에는 이전 상태가 저장됩니다.
@@ -65,12 +63,9 @@ class SceneController extends StateNotifier<Scene> {
   /// 씬의 레이아웃을 새로운 레이아웃으로 업데이트합니다.
   /// 히스토리에는 이전 상태가 저장됩니다.
   void updateLayout(List<SceneLayoutItem> newLayout) {
-     final newState = state.copyWith(layout: newLayout);
-    if (_isOperationActive) {
-      // 연속 작업 중이라면 pending state 업데이트
-      _updatePendingState(newState);
-    } else {
-      // 일반적인 레이아웃 업데이트는 바로 히스토리에 저장
+    final newState = state.copyWith(layout: newLayout);
+    if (!_isOperationActive) {
+      // 일반 업데이트는 변경 전 상태를 히스토리에 저장
       ref.read(sceneHistoryProvider.notifier).push(state);
     }
     state = newState;
@@ -87,11 +82,8 @@ class SceneController extends StateNotifier<Scene> {
       outputUrl: state.outputUrl,
       createdAt: state.createdAt,
     );
-    if (_isOperationActive) {
-      // 연속 작업 중이라면 pending state 업데이트
-      _updatePendingState(newState);
-    } else {
-      // 일반적인 추가는 바로 히스토리에 저장
+    if (!_isOperationActive) {
+      // 일반적인 추가는 바로 히스토리에 저장(변경 전 상태)
       ref.read(sceneHistoryProvider.notifier).push(state);
     }
     state = newState;
@@ -111,11 +103,8 @@ class SceneController extends StateNotifier<Scene> {
       createdAt: state.createdAt,
     );
 
-    if (_isOperationActive) {
-      // 연속 작업 중이라면 pending state 업데이트
-      _updatePendingState(newState);
-    } else {
-      // 일반적인 업데이트는 바로 히스토리에 저장
+    if (!_isOperationActive) {
+      // 일반적인 업데이트는 변경 전 상태를 히스토리에 저장
       ref.read(sceneHistoryProvider.notifier).push(state);
     }
     state = newState;
@@ -133,11 +122,8 @@ class SceneController extends StateNotifier<Scene> {
       outputUrl: state.outputUrl,
       createdAt: state.createdAt,
     );
-    if (_isOperationActive) {
-      // 연속 작업 중이라면 pending state 업데이트
-      _updatePendingState(newState);
-    } else {
-      // 일반적인 삭제는 바로 히스토리에 저장
+    if (!_isOperationActive) {
+      // 일반적인 삭제는 변경 전 상태를 히스토리에 저장
       ref.read(sceneHistoryProvider.notifier).push(state);
     }
     state = newState;
@@ -145,11 +131,8 @@ class SceneController extends StateNotifier<Scene> {
 
   void clear() {
     final newState = Scene(id: state.id, roomId: state.roomId, layout: []);
-    if (_isOperationActive) {
-      // 연속 작업 중이라면 pending state 업데이트
-      _updatePendingState(newState);
-    } else {
-      // 일반적인 클리어는 바로 히스토리에 저장
+    if (!_isOperationActive) {
+      // 일반적인 클리어는 변경 전 상태를 히스토리에 저장
       ref.read(sceneHistoryProvider.notifier).push(state);
     }
     state = newState;

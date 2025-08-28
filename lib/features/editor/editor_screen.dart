@@ -191,7 +191,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         icon: const Icon(Icons.undo),
                         onPressed: canUndo
                             ? () {
-                                final previousState = ref.read(sceneHistoryProvider.notifier).undo();
+                                final current = ref.read(currentSceneProvider);
+                                final previousState = ref.read(sceneHistoryProvider.notifier).undo(current);
                                 if (previousState != null) {
                                   ref.read(currentSceneProvider.notifier).restoreState(previousState);
                                 }
@@ -209,7 +210,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         icon: const Icon(Icons.redo),
                         onPressed: canRedo
                             ? () {
-                                final nextState = ref.read(sceneHistoryProvider.notifier).redo();
+                                final current = ref.read(currentSceneProvider);
+                                final nextState = ref.read(sceneHistoryProvider.notifier).redo(current);
                                 if (nextState != null) {
                                   ref.read(currentSceneProvider.notifier).restoreState(nextState);
                                 }
