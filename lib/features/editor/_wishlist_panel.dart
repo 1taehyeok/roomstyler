@@ -8,6 +8,7 @@ import 'package:roomstyler/core/models/scene.dart'; // SceneLayoutItem 임포트
 import 'package:roomstyler/state/scene_providers.dart';
 import 'package:roomstyler/state/wishlist_provider.dart';
 import '_wishlist_item.dart'; // 찜 목록 아이템 위젯 임포트
+import 'editor_constants.dart'; // Import the constants
 
 /// 편집기 화면에 표시되는 찜 목록 슬라이드 패널 위젯입니다.
 class WishlistPanel extends ConsumerWidget {
@@ -25,13 +26,14 @@ class WishlistPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // --- 휴지통 아이콘 위치 및 크기 정의 ---
-    const double iconSize = 40.0; // 휴지통 아이콘 크기
-    const double iconRadius = iconSize / 2; // 휴지통 아이콘 반지름
+    // Use constants from EditorConstants
+    // const double iconSize = EditorConstants.wishlistTrashIconSize; // 휴지통 아이콘 크기
+    // const double iconRadius = EditorConstants.wishlistTrashIconRadius; // 휴지통 아이콘 반지름
     // --- DragTarget 수정 ---
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300), // 애니메이션 시간
+      duration: EditorConstants.wishlistPanelAnimationDuration, // 애니메이션 시간
       curve: Curves.easeInOut, // 애니메이션 커브
-      height: isOpen ? 200 : 0, // 패널 높이 (열려있을 때 200, 닫혀있을 때 0)
+      height: isOpen ? EditorConstants.wishlistPanelOpenHeight : EditorConstants.wishlistPanelClosedHeight, // 패널 높이
       width: double.infinity, // 너비는 화면 전체
       child: Container(
         color: Theme.of(context).cardColor, // 패널 배경색
@@ -161,11 +163,12 @@ class WishlistTrashTarget extends ConsumerStatefulWidget {
 class _WishlistTrashTargetState extends ConsumerState<WishlistTrashTarget> {
   bool _isTrashHighlighted = false;
   // --- 휴지통 아이콘 위치 및 크기 정의 (onMove에서 재사용) ---
-  static const double _iconSize = 40.0;
-  static const double _iconRadius = _iconSize / 2;
-  static const double _containerWidth = 50.0;
-  static const double _containerHeight = 50.0;
-  static const double _positionedBottom = 10.0;
+  // Use constants from EditorConstants
+  static const double _iconSize = EditorConstants.wishlistTrashIconSize;
+  static const double _iconRadius = EditorConstants.wishlistTrashIconRadius;
+  static const double _containerWidth = EditorConstants.wishlistTrashContainerWidth;
+  static const double _containerHeight = EditorConstants.wishlistTrashContainerHeight;
+  static const double _positionedBottom = EditorConstants.wishlistTrashPositionedBottom;
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +214,8 @@ class _WishlistTrashTargetState extends ConsumerState<WishlistTrashTarget> {
         // 이 로직은 패널의 높이, 아이콘 위치, 크기가 변경되면 함께 수정되어야 합니다.
         
         final Size panelSize = MediaQuery.of(context).size;
-        final double panelHeight = 200.0; // 패널이 열려있을 때의 높이 (AnimatedContainer.height)
+        // Use constant for panel height
+        final double panelHeight = EditorConstants.wishlistPanelOpenHeight; 
         final double iconCenterX = panelSize.width / 2.0;
         // 패널 하단 기준으로 아이콘 중앙까지의 거리
         final double iconCenterYFromBottom = _positionedBottom + (_containerHeight / 2.0); 
@@ -220,7 +224,8 @@ class _WishlistTrashTargetState extends ConsumerState<WishlistTrashTarget> {
         // 3. 드롭 좌표와 아이콘 중앙 좌표 사이의 거리 계산
         // y축 방향이 드래그 포인터 offset과 패널 높이 계산에서 일관되게 처리
         final double dx = dropOffset.dx - iconCenterX;
-        final double dy = (panelSize.height - dropOffset.dy) - iconCenterY; 
+        // Adjust y calculation for consistency
+        final double dy = dropOffset.dy - iconCenterY; 
         final double distance = sqrt(dx * dx + dy * dy);
 
         // 4. 거리가 허용 반지름 이내인지 확인
@@ -234,6 +239,7 @@ class _WishlistTrashTargetState extends ConsumerState<WishlistTrashTarget> {
           );
         } else {
           // 드롭 위치가 휴지통 아이콘 영역 밖이면 아무것도 하지 않음
+          // Consider showing feedback if item is dropped outside but was dragged over trash
         }
       },
       onLeave: (data) {
@@ -251,14 +257,16 @@ class _WishlistTrashTargetState extends ConsumerState<WishlistTrashTarget> {
         
         // 2. 휴지통 아이콘의 중앙 좌표 계산 (위와 동일)
         final Size panelSize = MediaQuery.of(context).size;
-        final double panelHeight = 200.0;
+        // Use constant for panel height
+        final double panelHeight = EditorConstants.wishlistPanelOpenHeight; 
         final double iconCenterX = panelSize.width / 2.0;
         final double iconCenterYFromBottom = _positionedBottom + (_containerHeight / 2.0); 
         final double iconCenterY = panelHeight - iconCenterYFromBottom;
 
         // 3. 드래그 포인터와 아이콘 중앙 좌표 사이의 거리 계산
         final double dx = dragOffset.dx - iconCenterX;
-        final double dy = (panelSize.height - dragOffset.dy) - iconCenterY; 
+        // Adjust y calculation for consistency
+        final double dy = dragOffset.dy - iconCenterY; 
         final double distance = sqrt(dx * dx + dy * dy);
 
         // 4. 거리에 따라 강조 상태 결정 및 업데이트
@@ -272,4 +280,5 @@ class _WishlistTrashTargetState extends ConsumerState<WishlistTrashTarget> {
     );
   }
 }
+// --- WishlistTrashTarget 위젯 정의 끝 ---
 // --- WishlistTrashTarget 위젯 정의 끝 ---

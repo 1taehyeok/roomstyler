@@ -49,6 +49,33 @@ class SceneController extends StateNotifier<Scene> {
     }
   }
 
+  /// 씬 전체를 새로운 씬으로 교체합니다.
+  /// 히스토리에는 이전 상태가 저장됩니다.
+  void setScene(Scene newScene) {
+    ref.read(sceneHistoryProvider.notifier).push(state);
+    state = newScene;
+  }
+
+  /// 씬의 상태를 이전 상태로 복원합니다. (예: Undo/Redo)
+  /// 히스토리에는 현재 상태를 저장하지 않습니다.
+  void restoreState(Scene restoredScene) {
+    state = restoredScene;
+  }
+
+  /// 씬의 레이아웃을 새로운 레이아웃으로 업데이트합니다.
+  /// 히스토리에는 이전 상태가 저장됩니다.
+  void updateLayout(List<SceneLayoutItem> newLayout) {
+     final newState = state.copyWith(layout: newLayout);
+    if (_isOperationActive) {
+      // 연속 작업 중이라면 pending state 업데이트
+      _updatePendingState(newState);
+    } else {
+      // 일반적인 레이아웃 업데이트는 바로 히스토리에 저장
+      ref.read(sceneHistoryProvider.notifier).push(state);
+    }
+    state = newState;
+  }
+
   void addItem(SceneLayoutItem item) {
     final newState = Scene(
       id: state.id,

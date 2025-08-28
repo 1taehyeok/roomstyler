@@ -6,6 +6,7 @@ import 'package:roomstyler/state/scene_providers.dart';
 import 'dart:io';
 import 'dart:math';
 import '_furniture_item_view.dart';
+import 'editor_constants.dart'; // Import the constants
 
 class EditorCanvas extends ConsumerStatefulWidget {
   final String? backgroundImage;
@@ -68,7 +69,7 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
                 child: Opacity(
                   opacity: _isTrashVisible ? 1.0 : 0.0,
                   child: Positioned(
-                    top: 20,
+                    top: 20, // Consider making this a constant if needed elsewhere
                     left: 0,
                     right: 0,
                     child: Align(
@@ -76,7 +77,7 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
                       child: Icon(
                         Icons.delete,
                         key: trashKey,
-                        size: _isTrashHighlighted ? 50 : 40,
+                        size: _isTrashHighlighted ? 50 : 40, // These could be constants too, e.g., EditorConstants.canvasTrashIconSizeHighlighted
                         color: _isTrashHighlighted ? Colors.redAccent : Colors.red,
                       ),
                     ),
@@ -103,12 +104,17 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
       final isSelectedForEditing = _selectedItemIndex == index && !_isTrashVisible;
       final isSelectedForDeleting = _draggingItemIndex == index && _isTrashVisible;
 
-      const itemBaseSize = 100.0;
+      // Use the constant from EditorConstants
+      final itemBaseSize = EditorConstants.itemBaseSize;
+      // Consider making this a constant as well, e.g., EditorConstants.itemScaleOnDelete
       final scale = isSelectedForDeleting ? 0.9 : 1.0;
 
+      // Calculate item size once for readability
+      final itemActualSize = itemBaseSize * item.scale * scale;
+
       return Positioned(
-        left: item.x * canvasWidth - (itemBaseSize * item.scale * scale / 2),
-        top: item.y * canvasHeight - (itemBaseSize * item.scale * scale / 2),
+        left: item.x * canvasWidth - (itemActualSize / 2),
+        top: item.y * canvasHeight - (itemActualSize / 2),
         child: Transform.scale(
           scale: scale,
           child: _buildFurnitureItem(
@@ -207,6 +213,7 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
       onScaleUpdate: (details) {
         if (_isTrashVisible || _selectedItemIndex != index) return;
 
+        // --- Pan (1 pointer) ---
         if (details.pointerCount == 1) {
           final delta = details.focalPoint - _dragStartOffset;
           final newX = (_itemStartOffset.dx + delta.dx) / canvasWidth;
@@ -215,7 +222,9 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
                 index,
                 item.copyWith(x: newX.clamp(0.0, 1.0), y: newY.clamp(0.0, 1.0)),
               );
-        } else {
+        }
+        // --- Scale & Rotate (2 pointers) ---
+        else {
           final newScale = (_startScale * details.scale).clamp(0.5, 3.0);
           final newRotation = _startRotation + details.rotation;
           ref.read(currentSceneProvider.notifier).updateItem(
@@ -250,7 +259,8 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
     final trashPosition = renderBox.localToGlobal(Offset.zero);
     final iconCenterX = trashPosition.dx + trashSize.width / 2;
     final iconCenterY = trashPosition.dy + trashSize.height / 2;
-    final iconRadius = trashSize.width;
+    // Consider making this a constant or calculating dynamically if the size changes
+    final iconRadius = trashSize.width; // This seems to be the full width, not radius. Might need adjustment.
     final dx = globalPosition.dx - iconCenterX;
     final dy = globalPosition.dy - iconCenterY;
     final distance = sqrt(dx * dx + dy * dy);
