@@ -38,7 +38,7 @@ class Furniture {
     color: json['color'],
     material: json['material'],
     price: (json['price'] as num).toDouble(),
-    imageUrl: json['image_url'],
+    imageUrl: json['imageUrl'],
     affiliateUrl: json['affiliate_url'],
   );
 
