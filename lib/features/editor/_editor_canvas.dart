@@ -64,27 +64,26 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
                   child: const Center(child: Text('여기에 방 배경이 표시됩니다.')),
                 ),
               // 휴지통 아이콘
-              IgnorePointer(
-                ignoring: !_isTrashVisible,
-                child: Opacity(
-                  opacity: _isTrashVisible ? 1.0 : 0.0,
-                  child: Positioned(
-                    top: 20, // Consider making this a constant if needed elsewhere
-                    left: 0,
-                    right: 0,
+              Positioned(
+                top: 20,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  ignoring: !_isTrashVisible,
+                  child: Opacity(
+                    opacity: _isTrashVisible ? 1.0 : 0.0,
                     child: Align(
                       alignment: Alignment.topCenter,
                       child: Icon(
                         Icons.delete,
                         key: trashKey,
-                        size: _isTrashHighlighted ? 50 : 40, // These could be constants too, e.g., EditorConstants.canvasTrashIconSizeHighlighted
+                        size: _isTrashHighlighted ? 50 : 40,
                         color: _isTrashHighlighted ? Colors.redAccent : Colors.red,
                       ),
                     ),
                   ),
                 ),
               ),
-
               // 가구 아이템들
               ..._buildFurnitureItems(constraints),
             ],

@@ -155,9 +155,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       body: Stack(
         children: [
           // --- 기존 캔버스 내용을 _EditorCanvas 위젯으로 교체 ---
-          EditorCanvas(
-            backgroundImage: backgroundImage,
-            onBackgroundTap: () {}, // EditorCanvas handles its own deselection
+          Positioned.fill(
+            child: EditorCanvas(
+              backgroundImage: backgroundImage,
+              onBackgroundTap: () {}, // EditorCanvas handles its own deselection
+            ),
           ),
           // --- 찜 목록 슬라이드 패널 추가 ---
           // Positioned를 사용하여 하단 버튼 위에 패널을 배치

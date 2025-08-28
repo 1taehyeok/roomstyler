@@ -132,9 +132,12 @@ class WishlistPanel extends ConsumerWidget {
               ],
             ),
             // --- 휴지통 DragTarget 추가 ---
-            WishlistTrashTarget(
-              wishlistProvider: ref, // ref를 전달
-              sceneProvider: ref, // ref를 전달
+            // WishlistTrashTarget을 Positioned.fill로 감싸 Stack의 직속 자식으로 만듦
+            Positioned.fill(
+              child: WishlistTrashTarget(
+                wishlistProvider: ref, // ref를 전달
+                sceneProvider: ref, // ref를 전달
+              ),
             ),
             // --- 휴지통 끝 ---
           ],
@@ -180,27 +183,31 @@ class _WishlistTrashTargetState extends ConsumerState<WishlistTrashTarget> {
         // 아이콘의 표시 여부는 AnimatedPositioned의 위치와 Container 크기에 의해 결정됩니다.
         final isDragOverTarget = candidateData.isNotEmpty;
         
-        return AnimatedPositioned(
-          duration: const Duration(milliseconds: 200),
-          bottom: _positionedBottom, // 아이콘을 하단에서 약간 띄움
-          left: 0,
-          right: 0,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              width: _containerWidth, // 휴지통 아이콘의 드래그 영역 너비
-              height: _containerHeight, // 휴지통 아이콘의 드래그 영역 높이
-              alignment: Alignment.center, // 아이콘을 컨테이너 중앙에 배치
-              child: Transform(
-                transform: Matrix4.translationValues(0, isDragOverTarget && _isTrashHighlighted ? -10 : 0, 0),
-                child: Icon(
-                  Icons.delete,
-                  size: (isDragOverTarget && _isTrashHighlighted) ? _iconSize : (_iconSize - 10), // 강조 시 크기 변경
-                  color: (isDragOverTarget && _isTrashHighlighted) ? Colors.red : Colors.grey, // 강조 시 색상 변경
+        return Stack(
+          children: [
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              bottom: _positionedBottom, // 아이콘을 하단에서 약간 띄움
+              left: 0,
+              right: 0,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  width: _containerWidth, // 휴지통 아이콘의 드래그 영역 너비
+                  height: _containerHeight, // 휴지통 아이콘의 드래그 영역 높이
+                  alignment: Alignment.center, // 아이콘을 컨테이너 중앙에 배치
+                  child: Transform(
+                    transform: Matrix4.translationValues(0, isDragOverTarget && _isTrashHighlighted ? -10 : 0, 0),
+                    child: Icon(
+                      Icons.delete,
+                      size: (isDragOverTarget && _isTrashHighlighted) ? _iconSize : (_iconSize - 10), // 강조 시 크기 변경
+                      color: (isDragOverTarget && _isTrashHighlighted) ? Colors.red : Colors.grey, // 강조 시 색상 변경
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         );
       },
       onAcceptWithDetails: (details) {
@@ -280,5 +287,4 @@ class _WishlistTrashTargetState extends ConsumerState<WishlistTrashTarget> {
     );
   }
 }
-// --- WishlistTrashTarget 위젯 정의 끝 ---
 // --- WishlistTrashTarget 위젯 정의 끝 ---
