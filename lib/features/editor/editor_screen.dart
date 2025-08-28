@@ -110,10 +110,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scene = ref.watch(currentSceneProvider);
+    // 전체 씬 변경(특히 layout 변화)으로 인한 불필요한 재빌드를 방지하기 위해
+    // roomId만 선택적으로 구독합니다.
+    final roomId = ref.watch(currentSceneProvider.select((s) => s.roomId));
 
-    // 배경 이미지 경로 결정: widget.imagePath(초기 진입 시) 또는 scene.roomId(저장된 프로젝트 로드 시)
-    final String? backgroundImage = widget.imagePath ?? scene.roomId;
+    // 배경 이미지 경로 결정: widget.imagePath(초기 진입 시) 또는 roomId(저장된 프로젝트 로드 시)
+    final String? backgroundImage = widget.imagePath ?? roomId;
 
     return Scaffold(
       appBar: AppBar(

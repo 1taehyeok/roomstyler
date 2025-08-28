@@ -15,26 +15,37 @@ class WishlistItem extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Draggable<Furniture>(
       data: furniture, // 드래그 시 전달할 데이터
-      feedback: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.blue, width: 2),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8.0),
-          child: CachedNetworkImage(
-            imageUrl: furniture.imageUrl ?? 'https://picsum.photos/600/400',
-            width: 80,
-            height: 80,
-            fit: BoxFit.cover,
+      feedback: Material(
+        elevation: 8.0,
+        borderRadius: BorderRadius.circular(8.0),
+        child: Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.blue, width: 2),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8.0),
+            child: CachedNetworkImage(
+              imageUrl: furniture.imageUrl ?? 'https://picsum.photos/600/400',
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
       ),
       childWhenDragging: Container(
         width: 100,
         height: 100,
-        color: Colors.grey.withOpacity(0.5), // 드래그 중일 때 원래 위치 표시
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        child: const Center(
+          child: Icon(Icons.drag_indicator, color: Colors.grey),
+        ),
       ),
       onDragStarted: () {
         // 드래그 시작 시 추가 로직 (예: 진동 등)
@@ -52,8 +63,9 @@ class WishlistItem extends ConsumerWidget {
         },
         child: Container(
           width: 100, // 아이템 너비
-          margin: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(4.0), // 패딩을 줄여서 높이 계산 정확성 향상
           child: Column(
+            mainAxisSize: MainAxisSize.min, // 콘텐츠 크기에 맞춤
             children: [
               // 가구 이미지
               ClipRRect(
@@ -79,12 +91,14 @@ class WishlistItem extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               // 가구 이름
-              Text(
-                furniture.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12),
+              Flexible(
+                child: Text(
+                  furniture.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ],
           ),

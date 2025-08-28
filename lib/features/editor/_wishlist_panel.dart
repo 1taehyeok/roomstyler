@@ -25,76 +25,88 @@ class WishlistPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // --- 휴지통 아이콘 위치 및 크기 정의 ---
-    // Use constants from EditorConstants
-    // const double iconSize = EditorConstants.wishlistTrashIconSize; // 휴지통 아이콘 크기
-    // const double iconRadius = EditorConstants.wishlistTrashIconRadius; // 휴지통 아이콘 반지름
-    // --- DragTarget 수정 ---
-    return AnimatedContainer(
-      duration: EditorConstants.wishlistPanelAnimationDuration, // 애니메이션 시간
-      curve: Curves.easeInOut, // 애니메이션 커브
-      height: isOpen ? EditorConstants.wishlistPanelOpenHeight : EditorConstants.wishlistPanelClosedHeight, // 패널 높이
-      width: double.infinity, // 너비는 화면 전체
-      child: Container(
-        color: Theme.of(context).cardColor, // 패널 배경색
-        child: Stack(
-          children: [
-            // 패널 내용 (찜한 가구 목록)
-            Column(
+    return AnimatedSize(
+      duration: EditorConstants.wishlistPanelAnimationDuration,
+      curve: Curves.easeInOut,
+      child: SizedBox(
+        height: isOpen ? EditorConstants.wishlistPanelOpenHeight : EditorConstants.wishlistPanelClosedHeight,
+        width: double.infinity,
+        child: ClipRect(
+          child: Container(
+            color: Theme.of(context).cardColor,
+            child: isOpen
+                ? _buildOpenPanel(ref)
+                : const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOpenPanel(WidgetRef ref) {
+    return SizedBox(
+      height: EditorConstants.wishlistPanelOpenHeight,
+      child: Column(
+        children: [
+          // 패널 헤더
+          Container(
+            height: 72, // 고정 높이: 패딩(32) + 텍스트/아이콘(40)
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // 패널 헤더
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('찜한 가구', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: onClose, // 닫기 버튼
-                      ),
-                    ],
-                  ),
+                const Text('찜한 가구', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: onClose, // 닫기 버튼
                 ),
-                // 패널 내용 (찜한 가구 목록)
-                Expanded(
-                  child: Consumer(
-                    builder: (context, ref, child) {
-                      final wishlistIds = ref.watch(wishlistProvider);
-                      if (wishlistIds.isEmpty) {
-                        return const Center(child: Text('찜한 가구가 없습니다.'));
-                      }
+              ],
+            ),
+          ),
+          // 패널 내용 (찜한 가구 목록)
+          Expanded(
+            child: Stack(
+              children: [
+                // 가구 목록
+                Consumer(
+                  builder: (context, ref, child) {
+                    final wishlistIds = ref.watch(wishlistProvider);
+                    if (wishlistIds.isEmpty) {
+                      return const Center(child: Text('찜한 가구가 없습니다.'));
+                    }
 
-                      // Firestore에서 찜한 가구들의 상세 정보를 가져옵니다.
-                      // Note: whereIn은 최대 10개의 항목만 허용합니다. 더 많은 경우 처리 로직이 필요할 수 있습니다.
-                      // 간단한 예제이므로 10개 이하를 가정합니다.
-                      if (wishlistIds.length > 10) {
-                        return const Center(child: Text('찜한 가구가 너무 많습니다. 일부만 표시됩니다.'));
-                        // 또는, wishlistIds.take(10).toList() 와 같이 상위 10개만 가져오도록 수정할 수 있습니다.
-                      }
+                    // Firestore에서 찜한 가구들의 상세 정보를 가져옵니다.
+                    // Note: whereIn은 최대 10개의 항목만 허용합니다. 더 많은 경우 처리 로직이 필요할 수 있습니다.
+                    // 간단한 예제이므로 10개 이하를 가정합니다.
+                    if (wishlistIds.length > 10) {
+                      return const Center(child: Text('찜한 가구가 너무 많습니다. 일부만 표시됩니다.'));
+                      // 또는, wishlistIds.take(10).toList() 와 같이 상위 10개만 가져오도록 수정할 수 있습니다.
+                    }
 
-                      return StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('furnitures')
-                            .where(FieldPath.documentId, whereIn: wishlistIds.toList())
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
-                          }
-                          if (snapshot.hasError) {
-                            return Center(child: Text('오류: ${snapshot.error}'));
-                          }
-                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                            return const Center(child: Text('찜한 가구 정보를 불러올 수 없습니다.'));
-                          }
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('furnitures')
+                          .where(FieldPath.documentId, whereIn: wishlistIds.toList())
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          return Center(child: Text('오류: ${snapshot.error}'));
+                        }
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return const Center(child: Text('찜한 가구 정보를 불러올 수 없습니다.'));
+                        }
 
-                          final furnitureDocs = snapshot.data!.docs;
-                          final furnitures = furnitureDocs.map((doc) {
-                            return Furniture.fromJson(doc.data() as Map<String, dynamic>, doc.id);
-                          }).toList();
+                        final furnitureDocs = snapshot.data!.docs;
+                        final furnitures = furnitureDocs.map((doc) {
+                          return Furniture.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+                        }).toList();
 
-                          return ListView.builder(
+                        return SizedBox(
+                          height: 112, // WishlistItem의 정확한 높이: 이미지(80) + 여백(4) + 텍스트(24) + 패딩(4)
+                          child: ListView.builder(
                             scrollDirection: Axis.horizontal, // 가로 스크롤
                             itemCount: furnitures.length,
                             itemBuilder: (context, index) {
@@ -123,25 +135,25 @@ class WishlistPanel extends ConsumerWidget {
                                 },
                               );
                             },
-                          );
-                        },
-                      );
-                    },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                // --- 휴지통 DragTarget 추가 ---
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: WishlistTrashTarget(
+                    wishlistProvider: ref, // ref를 전달
+                    sceneProvider: ref, // ref를 전달
                   ),
                 ),
+                // --- 휴지통 끝 ---
               ],
             ),
-            // --- 휴지통 DragTarget 추가 ---
-            // WishlistTrashTarget을 Positioned.fill로 감싸 Stack의 직속 자식으로 만듦
-            Positioned.fill(
-              child: WishlistTrashTarget(
-                wishlistProvider: ref, // ref를 전달
-                sceneProvider: ref, // ref를 전달
-              ),
-            ),
-            // --- 휴지통 끝 ---
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
