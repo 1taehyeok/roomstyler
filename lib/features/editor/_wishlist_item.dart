@@ -3,13 +3,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:roomstyler/core/models/furniture.dart';
+import 'dart:io'; // File을 사용하기 위해 필요
 
 /// 찜 목록 패널에 표시되는 개별 가구 아이템을 나타내는 위젯입니다.
 class WishlistItem extends ConsumerWidget {
   final Furniture furniture;
   final VoidCallback onAdd;
+  // --- 변경 1: 드래그 콜백 prop 추가 ---
+  final VoidCallback? onDragStarted;
+  final VoidCallback? onDragEnd;
+  // --- 변경 끝 ---
 
-  const WishlistItem({super.key, required this.furniture, required this.onAdd});
+  const WishlistItem({
+    super.key,
+    required this.furniture,
+    required this.onAdd,
+    // --- 변경 2: 생성자에 prop 추가 ---
+    this.onDragStarted,
+    this.onDragEnd,
+    // --- 변경 끝 ---
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,12 +40,63 @@ class WishlistItem extends ConsumerWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8.0),
-            child: CachedNetworkImage(
-              imageUrl: furniture.imageUrl ?? 'https://picsum.photos/600/400',
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
+            // --- 수정: feedback 위젯도 로컬/네트워크 이미지 구분 ---
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (furniture.isLocalImage == true && furniture.localImagePath != null) {
+                  // 로컬 이미지 표시
+                  return Image.file(
+                    File(furniture.localImagePath!),
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 80,
+                      height: 80,
+                      color: Colors.red.withOpacity(0.5),
+                      child: const Icon(Icons.error),
+                    ),
+                  );
+                } else if (furniture.imageUrl != null && furniture.imageUrl!.isNotEmpty) {
+                  // 네트워크 이미지 표시
+                  return CachedNetworkImage(
+                    imageUrl: furniture.imageUrl!,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 80,
+                      height: 80,
+                      color: Colors.grey[300],
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 80,
+                      height: 80,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.error),
+                    ),
+                  );
+                } else {
+                  // 둘 다 없을 경우 기본 플레이스홀더
+                  return Container(
+                    width: 80,
+                    height: 80,
+                    color: Colors.grey[300],
+                    child: Center(
+                      child: Text(
+                        furniture.name,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    ),
+                  );
+                }
+              },
             ),
+            // --- 수정 끝 ---
           ),
         ),
       ),
@@ -47,12 +111,10 @@ class WishlistItem extends ConsumerWidget {
           child: Icon(Icons.drag_indicator, color: Colors.grey),
         ),
       ),
-      onDragStarted: () {
-        // 드래그 시작 시 추가 로직 (예: 진동 등)
-      },
-      onDragEnd: (details) {
-        // 드래그 종료 시 추가 로직 (성공/실패 여부 등)
-      },
+      // --- 변경 3: Draggable 콜백 연결 ---
+      onDragStarted: onDragStarted, // 드래그 시작 시 콜백 호출
+      onDragEnd: (_) => onDragEnd?.call(), // 드래그 종료 시 콜백 호출
+      // --- 변경 끝 ---
       child: GestureDetector(
         onTap: onAdd,
         onLongPress: () {
@@ -67,26 +129,70 @@ class WishlistItem extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min, // 콘텐츠 크기에 맞춤
             children: [
-              // 가구 이미지
+              // 가구 이미지: 로컬 이미지 경로(localImagePath)가 있으면 FileImage, 없으면 CachedNetworkImage 사용
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: CachedNetworkImage(
-                  imageUrl: furniture.imageUrl ?? 'https://picsum.photos/600/400',
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey[300],
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.error),
-                  ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final furnitureMap = furniture.toJson(); // Furniture 객체를 Map으로 변환
+                    // 로컬 이미지 표시 로직
+                    if (furniture.imageUrl != null &&
+                        furniture.imageUrl!.isNotEmpty &&
+                        (furnitureMap['isLocalImage'] == null ||
+                            furnitureMap['isLocalImage'] == false)) {
+                      // 기존 방식: CachedNetworkImage 사용 (isLocalImage가 없거나 false인 경우)
+                      return CachedNetworkImage(
+                        imageUrl: furniture.imageUrl!,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          width: 80,
+                          height: 80,
+                          color: Colors.grey[300],
+                          child: const Center(child: CircularProgressIndicator()),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          width: 80,
+                          height: 80,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.error),
+                        ),
+                      );
+                    } else if (furnitureMap['isLocalImage'] == true &&
+                        furnitureMap['localImagePath'] != null) {
+                      // 새로운 방식: 로컬 이미지 표시
+                      final localPath = furnitureMap['localImagePath'] as String;
+                      return Image.file(
+                        File(localPath),
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 80,
+                          height: 80,
+                          color: Colors.red.withOpacity(0.5),
+                          child: const Icon(Icons.error),
+                        ),
+                      );
+                    } else {
+                      // 둘 다 없거나 유효하지 않은 경우, 기본 플레이스홀더
+                      return Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.grey[300],
+                        child: Center(
+                          child: Text(
+                            furniture.name,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
               ),
               const SizedBox(height: 4),

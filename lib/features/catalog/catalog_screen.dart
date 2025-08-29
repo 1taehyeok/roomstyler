@@ -185,9 +185,13 @@ class _FurnitureCard extends ConsumerWidget {
 
           // 사용자가 "찜하기"를 선택한 경우
           if (confirm == true) {
-            ref.read(wishlistProvider.notifier).toggleItem(furniture.id);
+            // 찜 상태 변경 요청 및 Firestore 업데이트 완료 대기
+            await ref.read(wishlistProvider.notifier).toggleItem(furniture.id);
+            // Firestore 업데이트가 반영된 최신 상태를 가져옵니다.
+            final updatedWishlist = ref.read(wishlistProvider);
+            final isNowWishlisted = updatedWishlist.any((item) => item.id == furniture.id);
+            
             // 사용자 피드백
-            final isNowWishlisted = ref.read(wishlistProvider).contains(furniture.id);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                   content: Text(
@@ -229,8 +233,10 @@ class _FurnitureCard extends ConsumerWidget {
             // --- 찜 버튼 추가 ---
             Consumer(
               builder: (context, ref, child) {
+                // wishlistProvider의 state는 이제 List<Furniture>입니다.
+                // contains 메소드는 String을 찾지 못하므로, any를 사용해야 합니다.
                 final wishlist = ref.watch(wishlistProvider);
-                final isWishlisted = wishlist.contains(furniture.id);
+                final isWishlisted = wishlist.any((item) => item.id == furniture.id);
                 return Positioned(
                   top: 8,
                   right: 8,
