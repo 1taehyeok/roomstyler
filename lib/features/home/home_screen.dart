@@ -49,10 +49,11 @@ class HomeScreen extends ConsumerWidget {
           NavigationDestination(icon: Icon(Icons.home_outlined), label: '홈'),
           NavigationDestination(icon: Icon(Icons.chair_outlined), label: '가구'),
           NavigationDestination(icon: Icon(Icons.recommend_outlined), label: '추천'),
-          NavigationDestination(icon: Icon(Icons.collections_bookmark_outlined), label: '프로젝트'),
+          NavigationDestination(icon: Icon(Icons.account_circle_outlined), label: '마이'), // Updated icon and label
         ],
         onDestinationSelected: (i) {
           if (i == 1) context.push('/catalog');
+          if (i == 3) context.push('/mypage'); // Updated index for MyPage
           // 추천, 프로젝트는 후속 구현
         },
         selectedIndex: 0,

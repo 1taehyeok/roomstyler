@@ -8,6 +8,7 @@ import 'features/catalog/catalog_screen.dart';
 import 'features/editor/editor_screen.dart';
 import 'features/preview_share/preview_share_screen.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/my_page/my_page_screen.dart'; // Import MyPageScreen
 
 // listenable을 사용해 인증 상태 변경 시 라우터를 자동으로 새로고침
 final router = GoRouter(
@@ -27,6 +28,7 @@ final router = GoRouter(
     GoRoute(path: '/preview', builder: (_, __) => const PreviewShareScreen()),
     GoRoute(path: '/signin', builder: (_, __) => const SignInScreen()),
     GoRoute(path: '/signup', builder: (_, __) => const SignUpScreen()),
+    GoRoute(path: '/mypage', builder: (_, __) => const MyPageScreen()), // Add MyPage route
   ],
   redirect: (context, state) {
     final user = FirebaseAuth.instance.currentUser;
