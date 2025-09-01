@@ -33,10 +33,12 @@ class SceneController extends StateNotifier<Scene> {
     _isOperationActive = true;
     // 작업 시작 직전 상태를 저장 (Undo 시 돌아갈 상태)
     _operationOriginalState = state;
+    print('DEBUG: SceneController.startOperation called. _isOperationActive: $_isOperationActive');
   }
 
   /// 연속된 작업(예: 제스처)의 종료를 알리고, 히스토리에 저장합니다.
   void endOperation() {
+    print('DEBUG: SceneController.endOperation called. _isOperationActive: $_isOperationActive, _operationOriginalState is null: ${_operationOriginalState == null}');
     if (_isOperationActive && _operationOriginalState != null) {
       // 작업 전 상태를 한 번만 히스토리에 저장하여 Undo 시 정확히 되돌아가도록 함
       ref.read(sceneHistoryProvider.notifier).push(_operationOriginalState!);

@@ -188,7 +188,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   // Undo 버튼
                   Consumer(
                     builder: (context, ref, child) {
-                      final canUndo = ref.watch(sceneHistoryProvider.notifier).canUndo;
+                      print('DEBUG: Undo Consumer builder called'); // Add this line
+                      // --- 변경: ref.watch(sceneHistoryProvider)를 사용하여 state를 직접 watch ---
+                      final canUndo = ref.watch(sceneHistoryProvider);
+                      print('DEBUG: canUndo value is $canUndo'); // Add this line
                       return IconButton(
                         icon: const Icon(Icons.undo),
                         onPressed: canUndo

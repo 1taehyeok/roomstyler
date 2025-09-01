@@ -68,6 +68,7 @@ class Scene {
   final Map<String, dynamic>? renderParams;
   final String? outputUrl;
   final DateTime createdAt;
+  final String? customName; // Add customName field
 
   Scene({
     required this.id,
@@ -79,6 +80,7 @@ class Scene {
     this.renderParams,
     this.outputUrl,
     DateTime? createdAt,
+    this.customName, // Add customName to constructor
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory Scene.fromJson(Map<String, dynamic> json, String id) => Scene(
@@ -92,6 +94,7 @@ class Scene {
     renderParams: json['render_params'],
     outputUrl: json['output_url'],
     createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+    customName: json['custom_name'], // Add customName to fromJson
   );
 
   Map<String, dynamic> toJson() => {
@@ -103,6 +106,7 @@ class Scene {
     'render_params': renderParams,
     'output_url': outputUrl,
     'created_at': createdAt.toIso8601String(),
+    'custom_name': customName, // Add customName to toJson
   };
 
   Scene copyWith({
@@ -115,6 +119,7 @@ class Scene {
     Map<String, dynamic>? renderParams,
     String? outputUrl,
     DateTime? createdAt,
+    String? customName, // Add customName to copyWith
   }) {
     return Scene(
       id: id ?? this.id,
@@ -126,6 +131,7 @@ class Scene {
       renderParams: renderParams ?? this.renderParams,
       outputUrl: outputUrl ?? this.outputUrl,
       createdAt: createdAt ?? this.createdAt,
+      customName: customName ?? this.customName, // Add customName to copyWith
     );
   }
 }

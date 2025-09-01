@@ -207,6 +207,7 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
         if (_isTrashVisible) return;
         // 이동/스케일/회전 작업 시작
         ref.read(currentSceneProvider.notifier).startOperation();
+        print('DEBUG: _EditorCanvasState.onScaleStart called for item index: $index'); // Add this line
         setState(() {
           _selectedItemIndex = index;
           _startScale = item.scale;
@@ -242,6 +243,7 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
         if (_isTrashVisible) return;
         // 이동/스케일/회전 작업 종료
         ref.read(currentSceneProvider.notifier).endOperation();
+        print('DEBUG: _EditorCanvasState.onScaleEnd called'); // Add this line
       },
 
       child: FurnitureItemView(

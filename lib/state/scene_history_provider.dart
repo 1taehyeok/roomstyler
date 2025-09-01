@@ -3,16 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:roomstyler/core/models/scene.dart';
 
 /// 씬(Scene)의 히스토리를 관리하여 Undo/Redo 기능을 제공하는 Riverpod Notifier입니다.
-class SceneHistoryController extends Notifier<List<Scene>> {
+// --- 변경: Notifier의 타입 파라미터를 bool로 변경 ---
+class SceneHistoryController extends Notifier<bool> {
   // Undo용 히스토리 스택
   final List<Scene> _undoStack = [];
   // Redo용 히스토리 스택
   final List<Scene> _redoStack = [];
 
   @override
-  List<Scene> build() {
-    // 초기 상태는 빈 리스트
-    return [];
+  // --- 변경: build() 메소드의 반환 타입 및 내용 ---
+  bool build() {
+    // 초기 상태는 _undoStack이 비어있는지 여부
+    return _undoStack.isNotEmpty;
   }
 
   /// 현재 씬 상태를 히스토리에 저장합니다.
@@ -21,10 +23,12 @@ class SceneHistoryController extends Notifier<List<Scene>> {
   void push(Scene currentState) {
     // Undo 스택에 현재 상태 추가
     _undoStack.add(currentState);
+    print('DEBUG: SceneHistoryController.push called. _undoStack length: ${_undoStack.length}');
     // 새로운 작업이 발생했으므로 Redo 스택은 무효화됩니다.
     _redoStack.clear();
-    // 상태가 변경되었음을 Provider에 알림 (빌드 재호출)
-    state = [..._undoStack]; // state는 단순히 업데이트 여부를 알리기 위한 용도로 사용
+    // --- 변경: state에 _undoStack이 비어있는지 여부를 할당하여 변경 알림 ---
+    state = _undoStack.isNotEmpty;
+    print('DEBUG: SceneHistoryController state updated to: $state');
   }
 
   /// 마지막 작업을 되돌립니다 (Undo).
@@ -38,8 +42,8 @@ class SceneHistoryController extends Notifier<List<Scene>> {
     final previousState = _undoStack.removeLast();
     // 현재 상태를 Redo 스택에 저장하여 다시 실행 시 복구 가능하게 함
     _redoStack.add(current);
-    // 상태가 변경되었음을 Provider에 알림
-    state = [..._undoStack];
+    // --- 변경: state에 _undoStack이 비어있는지 여부를 할당하여 변경 알림 ---
+    state = _undoStack.isNotEmpty;
     return previousState;
   }
 
@@ -54,13 +58,17 @@ class SceneHistoryController extends Notifier<List<Scene>> {
     final nextState = _redoStack.removeLast();
     // 현재 상태를 Undo 스택에 저장하여 다시 실행 취소 가능하게 함
     _undoStack.add(current);
-    // 상태가 변경되었음을 Provider에 알림
-    state = [..._undoStack];
+    // --- 변경: state에 _undoStack이 비어있는지 여부를 할당하여 변경 알림 ---
+    state = _undoStack.isNotEmpty;
     return nextState;
   }
 
   /// Undo가 가능한지 여부를 반환합니다.
-  bool get canUndo => _undoStack.isNotEmpty;
+  bool get canUndo {
+    final result = _undoStack.isNotEmpty;
+    print('DEBUG: SceneHistoryController.canUndo called, returning: $result, _undoStack.length: ${_undoStack.length}');
+    return result;
+  }
 
   /// Redo가 가능한지 여부를 반환합니다.
   bool get canRedo => _redoStack.isNotEmpty;
@@ -69,11 +77,13 @@ class SceneHistoryController extends Notifier<List<Scene>> {
   void clear() {
     _undoStack.clear();
     _redoStack.clear();
-    state = [];
+    // --- 변경: state에 _undoStack이 비어있는지 여부를 할당하여 변경 알림 ---
+    state = _undoStack.isNotEmpty;
   }
 }
 
 // Riverpod Provider 정의
-final sceneHistoryProvider = NotifierProvider<SceneHistoryController, List<Scene>>(() {
+// --- 변경: Provider의 타입을 bool로 변경 ---
+final sceneHistoryProvider = NotifierProvider<SceneHistoryController, bool>(() {
   return SceneHistoryController();
 });

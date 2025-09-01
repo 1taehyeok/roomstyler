@@ -1,6 +1,6 @@
-I/flutter (19232): onMove - Drag Offset: Offset(98.0, 723.0), Icon Center: (205.71428571428572, 165.0), Distance: 568.3098736508442, Radius: 20.0
-I/flutter (19232): onMove - shouldBeHighlighted: false, _isTrashHighlighted: false
-I/flutter (19232): onMove - Drag Offset: Offset(110.3, 723.7), Icon Center: (205.71428571428572, 165.0), Distance: 566.7594578345665, Radius: 20.0
-I/flutter (19232): onMove - shouldBeHighlighted: false, _isTrashHighlighted: false
-I/flutter (19232): onMove - Drag Offset: Offset(134.8, 725.0), Icon Center: (205.71428571428572, 165.0), Distance: 564.4468205338285, Radius: 20.0
-I/flutter (19232): onMove - shouldBeHighlighted: false, _isTrashHighlighted: false
+I/flutter (16649): DEBUG: SceneController.startOperation called. _isOperationActive: true
+I/flutter (16649): DEBUG: _EditorCanvasState.onScaleStart called for item index: 0
+I/flutter (16649): DEBUG: SceneController.endOperation called. _isOperationActive: true, _operationOriginalState is null: false
+I/flutter (16649): DEBUG: SceneHistoryController.push called. _undoStack length: 1
+I/flutter (16649): DEBUG: SceneHistoryController state updated to: 1
+I/flutter (16649): DEBUG: _EditorCanvasState.onScaleEnd called

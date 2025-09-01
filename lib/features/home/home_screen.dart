@@ -163,7 +163,8 @@ class _UserProjectsList extends StatelessWidget {
             return _ProjectCard(
               scene: scene,
               onTap: () => onProjectSelected(scene),
-              onDelete: () => _deleteProject(context, doc.id, scene.id), // 삭제 콜백 전달
+              onDelete: (docId) => _deleteProject(context, docId, scene.id), // 삭제 콜백 전달 (문서 ID 사용)
+              onRename: _renameProject, // 이름 변경 콜백 전달
             );
           }).toList(),
         );
@@ -213,31 +214,85 @@ class _UserProjectsList extends StatelessWidget {
       }
     }
   }
+
+  // 프로젝트 이름 변경 메소드
+  Future<void> _renameProject(String docId, String newName) async {
+    // 이름이 비어있거나 공백만 있는 경우 처리
+    if (newName.trim().isEmpty) {
+      // 필요시 사용자에게 알림
+      return;
+    }
+
+    try {
+      // Firestore 문서에 'custom_name' 필드 업데이트
+      await FirebaseFirestore.instance.collection('scenes').doc(docId).update({
+        'custom_name': newName,
+      });
+    } catch (e) {
+      // 오류 처리 (예: SnackBar로 알림)
+      // 이 부분은 HomeScreen의 context가 필요하므로, 더 깔끔한 방법은 Provider나 callback을 사용하는 것입니다.
+      // 간단한 예시로 여기에 직접 context를 전달받아 사용할 수도 있지만, 구조를 단순하게 유지하기 위해 생략합니다.
+      print('이름 변경 중 오류 발생: $e');
+    }
+  }
 }
 
 // Firestore에서 불러온 Scene 데이터를 기반으로 렌더링하는 카드 위젯
 class _ProjectCard extends StatelessWidget {
   final Scene scene;
   final VoidCallback onTap;
-  final VoidCallback onDelete; // 삭제 콜백 추가
+  final Function(String) onDelete; // 삭제 콜백 수정: 문서 ID 필요
+  final Function(String, String) onRename; // 이름 변경 콜백 추가: (문서 ID, 새 이름)
 
   const _ProjectCard({
     required this.scene,
     required this.onTap,
-    required this.onDelete, // 삭제 콜백 초기화
+    required this.onDelete,
+    required this.onRename,
   });
 
   @override
   Widget build(BuildContext context) {
     // 간단한 날짜 포맷 (예: 2023-10-27)
     final formattedDate = DateFormat('yyyy-MM-dd').format(scene.createdAt);
+    // 문서 ID 가져오기 (Firestore 문서 ID)
+    final docId = scene.id; // scene.id가 Firestore 문서 ID입니다.
 
     return SizedBox(
       width: 180,
       child: Card(
-        // Card 위젯을 GestureDetector로 감싸서 롱 프레스 이벤트 처리
         child: GestureDetector(
-          onLongPress: onDelete, // 롱 프레스 시 삭제 콜백 호출
+          onLongPress: () {
+            // 롱 프레스 시 하단 시트 표시
+            showModalBottomSheet(
+              context: context,
+              builder: (BuildContext context) {
+                return SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.edit),
+                        title: const Text('이름 변경'),
+                        onTap: () {
+                          Navigator.of(context).pop(); // Bottom sheet 닫기
+                          _showRenameDialog(context, docId, scene.id == 'temp' ? '임시 프로젝트' : '프로젝트 #${scene.id.substring(0, 8)}', onRename);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.delete, color: Colors.red),
+                        title: const Text('삭제', style: TextStyle(color: Colors.red)),
+                        onTap: () {
+                          Navigator.of(context).pop(); // Bottom sheet 닫기
+                          onDelete(docId); // onDelete 콜백 호출
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
           child: InkWell(
             onTap: onTap,
             child: Column(
@@ -256,7 +311,7 @@ class _ProjectCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        scene.id == 'temp' ? '임시 프로젝트' : '프로젝트 #${scene.id.substring(0, 8)}',
+                        _getDisplayName(scene),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.bold),
@@ -280,6 +335,51 @@ class _ProjectCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // 이름 변경 다이얼로그를 표시하는 메소드
+  Future<void> _showRenameDialog(BuildContext context, String docId, String currentName, Function(String, String) onRename) async {
+    final TextEditingController _nameController = TextEditingController(text: currentName);
+
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('프로젝트 이름 변경'),
+          content: TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(hintText: "새 이름 입력"),
+            // autofocus: true, // 필요시 주석 해제
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                final newName = _nameController.text.trim();
+                if (newName.isNotEmpty) { // 이름 유효성 검사
+                  onRename(docId, newName);
+                }
+              },
+              child: const Text('확인'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Scene 객체에서 표시할 이름을 가져오는 헬퍼 메소드
+  String _getDisplayName(Scene scene) {
+    // Scene 객체에 customName 필드가 있고, 그 값이 비어 있지 않으면 그것을 사용
+    if (scene.customName != null && scene.customName!.isNotEmpty) {
+      return scene.customName!;
+    }
+    // 그렇지 않으면 기존 방식의 이름 사용
+    return scene.id == 'temp' ? '임시 프로젝트' : '프로젝트 #${scene.id.substring(0, 8)}';
   }
 }
 
