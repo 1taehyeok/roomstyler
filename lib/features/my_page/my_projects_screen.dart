@@ -207,7 +207,7 @@ class _MyProjectsScreenState extends ConsumerState<MyProjectsScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 16.0,
         mainAxisSpacing: 16.0,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.9, // Adjusted after removing bottom buttons
       ),
       itemCount: _orderedDocuments.length,
       itemBuilder: (context, index) {
@@ -617,22 +617,7 @@ class _ProjectCardState extends State<_ProjectCard> {
                         '${widget.scene.layout.length} items',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, size: 20),
-                            onPressed: widget.onEdit,
-                            tooltip: '편집',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.share, size: 20),
-                            onPressed: widget.onShare,
-                            tooltip: '공유',
-                          ),
-                        ],
-                      ),
+                      // Removed the Row of IconButton widgets (Edit and Share buttons)
                     ],
                   ),
                 ),
