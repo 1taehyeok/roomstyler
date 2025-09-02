@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:roomstyler/core/models/scene.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
+import 'package:roomstyler/state/wishlist_provider.dart'; // Import wishlist provider
 
 class MyPageScreen extends StatelessWidget {
   const MyPageScreen({super.key});
@@ -27,23 +29,17 @@ class MyPageScreen extends StatelessWidget {
 
           // --- Account Settings Section ---
           _buildSectionTitle(context, '계정 설정'),
-          _buildSettingsTile(context, Icons.password, '비밀번호 변경', () {
-            // TODO: Implement change password
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('비밀번호 변경 기능 미구현')),
-            );
+          _buildSettingsTile(context, Icons.password, '계정 설정', () {
+            // Navigate to account settings screen
+            context.push('/mypage/account');
           }),
           _buildSettingsTile(context, Icons.notifications, '알림 설정', () {
-            // TODO: Implement notification settings
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('알림 설정 기능 미구현')),
-            );
+            // Navigate to notification settings screen
+            context.push('/mypage/notifications');
           }),
           _buildSettingsTile(context, Icons.brightness_6, '테마 설정', () {
-            // TODO: Implement theme settings
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('테마 설정 기능 미구현')),
-            );
+            // 테마 설정 화면으로 이동
+            context.push('/mypage/theme');
           }),
           const SizedBox(height: 20),
 
@@ -66,10 +62,8 @@ class MyPageScreen extends StatelessWidget {
             );
           }),
           _buildSettingsTile(context, Icons.help, '도움말 및 피드백', () {
-            // TODO: Implement help & feedback
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('도움말 및 피드백 기능 미구현')),
-            );
+            // Navigate to help & feedback screen
+            context.push('/mypage/help-feedback');
           }),
           const SizedBox(height: 20),
 
@@ -140,10 +134,8 @@ class MyPageScreen extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: OutlinedButton(
                 onPressed: () {
-                  // TODO: Implement edit profile
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('프로필 수정 기능 미구현')),
-                  );
+                  // Navigate to edit profile screen
+                  context.push('/mypage/edit-profile');
                 },
                 child: const Text('프로필 수정'),
               ),
@@ -196,45 +188,85 @@ class MyPageScreen extends StatelessWidget {
         .limit(3) // Show only the latest 3 projects
         .snapshots();
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: projectsStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Card(child: Padding(padding: EdgeInsets.all(50), child: Center(child: CircularProgressIndicator())));
-        }
-        if (snapshot.hasError) {
-          return Card(child: Padding(padding: const EdgeInsets.all(16.0), child: Text('프로젝트 로드 중 오류 발생: ${snapshot.error}')));
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Card(child: Padding(padding: EdgeInsets.all(16.0), child: Text('프로젝트가 없습니다.')));
-        }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        StreamBuilder<QuerySnapshot>(
+          stream: projectsStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Card(child: Padding(padding: EdgeInsets.all(50), child: Center(child: CircularProgressIndicator())));
+            }
+            if (snapshot.hasError) {
+              return Card(child: Padding(padding: const EdgeInsets.all(16.0), child: Text('프로젝트 로드 중 오류 발생: ${snapshot.error}')));
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Card(child: Padding(padding: EdgeInsets.all(16.0), child: Text('프로젝트가 없습니다.')));
+            }
 
-        final documents = snapshot.data!.docs;
+            final documents = snapshot.data!.docs;
 
-        return Column(
-          children: documents.map((doc) {
-            final scene = Scene.fromJson(doc.data() as Map<String, dynamic>, doc.id);
-            return _ProjectCard(scene: scene, onTap: () {
-              // TODO: Navigate to editor with this scene
-              // For now, show a snackbar
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('프로젝트 클릭됨: ${scene.id.substring(0, 8)}')),
-              );
-            });
-          }).toList(),
-        );
-      },
+            return Column(
+              children: documents.map((doc) {
+                final scene = Scene.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+                return _ProjectCard(scene: scene, onTap: () {
+                  // TODO: Navigate to editor with this scene
+                  // For now, show a snackbar
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('프로젝트 클릭됨: ${scene.id.substring(0, 8)}')),
+                  );
+                });
+              }).toList(),
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        // "더보기" button to navigate to the full projects list
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () {
+              // Navigate to the full my projects screen
+              context.push('/mypage/projects');
+            },
+            child: const Text('더보기'),
+          ),
+        ),
+      ],
     );
   }
 
   /// Builds the "Wishlist" section
   Widget _buildWishlistSection(BuildContext context) {
-    // TODO: Implement wishlist display
-    // This is a placeholder. You would connect this to your wishlist provider/state.
-    return const Card(
+    return Card(
       child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('찜 목록 기능 미구현'),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('찜한 가구', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            // Wishlist items count and view button
+            Consumer(
+              builder: (context, ref, child) {
+                final wishlist = ref.watch(wishlistProvider);
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('총 ${wishlist.length}개의 아이템'),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Navigate to the full wishlist screen
+                        context.push('/mypage/wishlist');
+                      },
+                      child: const Text('찜 목록 보기'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

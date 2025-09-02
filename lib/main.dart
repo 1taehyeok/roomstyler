@@ -5,6 +5,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
 import 'app.dart';
 import 'config.dart'; // Config 임포트
+import 'state/theme_provider.dart'; // Import theme provider
 
 /// API 키가 설정되지 않았을 때 사용자에게 보여줄 간단한 앱
 class ConfigErrorApp extends StatelessWidget {
@@ -56,5 +57,24 @@ void main() async {
   await FirebaseAppCheck.instance.activate(
     androidProvider: AndroidProvider.playIntegrity,
   );
-  runApp(const ProviderScope(child: App()));
+  
+  runApp(
+    const ProviderScope(
+      child: AppLoader(), // AppLoader를 먼저 실행
+    ),
+  );
+}
+
+// 앱 시작 시 SharedPreferences에서 테마 설정을 불러오는 로더 위젯
+class AppLoader extends ConsumerWidget {
+  const AppLoader({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 앱 시작 시 테마 모드를 로드합니다.
+    ref.read(themeProvider.notifier).loadThemeMode();
+    
+    // 테마 로드가 완료되면 실제 App 위젯을 렌더링합니다.
+    return const App();
+  }
 }

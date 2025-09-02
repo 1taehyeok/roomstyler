@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http; // http 패키지 사용
 import 'dart:typed_data'; // Uint8List를 위해 필요
 import 'package:roomstyler/config.dart'; // Config 임포트
+import 'package:roomstyler/services/gemini_api_service.dart'; // GeminiLiveApiService 임포트
 import 'new_project_initializer.dart'; // 새로 추가한 파일 임포트
 
 class RoomUploadScreen extends StatefulWidget {
@@ -139,13 +140,13 @@ class _RoomUploadScreenState extends State<RoomUploadScreen> {
     if (_image == null) return;
 
     print('DEBUG: _processImage started');
-    print('DEBUG: Image path: ${_image!.path}'); 
-    // 파일 존재 여부 확인 
-    final imageFile = File(_image!.path);      
-    final exists = await imageFile.exists();      
+    print('DEBUG: Image path: ${_image!.path}');
+    // 파일 존재 여부 확인
+    final imageFile = File(_image!.path);
+    final exists = await imageFile.exists();
     print('DEBUG: Image file exists: $exists');
 
-    if (!exists) { 
+    if (!exists) {
       print('DEBUG: Image file does not exist at the specified path.');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -160,6 +161,8 @@ class _RoomUploadScreenState extends State<RoomUploadScreen> {
     });
 
     try {
+      // --- 기존 ClipDrop Reimagine API 로직 (주석 처리) ---
+      /*
       // 1. ClipDrop Reimagine API 정보
       final String clipDropApiKey = Config.clipdropApiKey;
       // final String clipDropApiUrl = 'https://clipdrop-api.co/inpaint/v1'; // 기존 URL
@@ -208,6 +211,43 @@ class _RoomUploadScreenState extends State<RoomUploadScreen> {
         print('ClipDrop API 에러: ${response.statusCode}, $error');
         throw Exception('API 에러: ${response.statusCode}, $error');
       }
+      */
+      // --- 기존 ClipDrop Reimagine API 로직 끝 ---
+
+      // --- 새로운 Google Gemini Live 2.5 Flash Preview API 로직 ---
+      // 1. Google Generative AI (Gemini) API 정보 (Config에서 가져오기)
+      final String geminiApiKey = Config.geminiApiKey;
+
+      if (geminiApiKey.isEmpty) {
+        throw Exception('GEMINI_API_KEY가 설정되지 않았습니다.');
+      }
+
+      // 2. 이미지 바이트 읽기
+      final imageBytes = await imageFile.readAsBytes();
+
+      // 3. Gemini Live API 호출 (서비스 계층으로 위임)
+      final processedImageBytes = await GeminiLiveApiService.removeFurnitureWithGeminiLive(
+        imageBytes: imageBytes,
+        apiKey: geminiApiKey,
+      );
+
+      if (processedImageBytes != null) {
+        // 4. 처리된 이미지를 임시 파일로 저장
+        final tempDir = Directory.systemTemp;
+        final tempFile = File('${tempDir.path}/gemini_live_furniture_removed.jpg');
+        await tempFile.writeAsBytes(processedImageBytes);
+        final processedImagePath = tempFile.path;
+        print('Gemini Live (가구 제거된) 이미지가 임시 파일에 저장됨: $processedImagePath');
+
+        // 5. 처리된 이미지 경로를 /editor 화면으로 전달
+        if (mounted) {
+          context.push('/editor', extra: processedImagePath);
+        }
+      } else {
+        // 6. 처리 실패
+        throw Exception('Gemini Live API 호출에 실패했습니다. 처리된 이미지를 받지 못했습니다.');
+      }
+      // --- 새로운 Google Gemini Live 2.5 Flash Preview API 로직 끝 ---
 
     } catch (e, s) {
       print('이미지 처리 중 에러: $e');

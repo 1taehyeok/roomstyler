@@ -9,6 +9,13 @@ import 'features/editor/editor_screen.dart';
 import 'features/preview_share/preview_share_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/my_page/my_page_screen.dart'; // Import MyPageScreen
+import 'features/my_page/wishlist_screen.dart'; // Import WishlistScreen
+import 'features/my_page/theme_settings_screen.dart'; // Import ThemeSettingsScreen
+import 'features/my_page/account_settings_screen.dart'; // Import AccountSettingsScreen
+import 'features/my_page/edit_profile_screen.dart'; // Import EditProfileScreen
+import 'features/my_page/help_feedback_screen.dart'; // Import HelpFeedbackScreen
+import 'features/my_page/notification_settings_screen.dart'; // Import NotificationSettingsScreen
+import 'features/my_page/my_projects_screen.dart'; // Import MyProjectsScreen
 
 // listenable을 사용해 인증 상태 변경 시 라우터를 자동으로 새로고침
 final router = GoRouter(
@@ -29,6 +36,13 @@ final router = GoRouter(
     GoRoute(path: '/signin', builder: (_, __) => const SignInScreen()),
     GoRoute(path: '/signup', builder: (_, __) => const SignUpScreen()),
     GoRoute(path: '/mypage', builder: (_, __) => const MyPageScreen()), // Add MyPage route
+    GoRoute(path: '/mypage/wishlist', builder: (_, __) => const WishlistScreen()), // Add Wishlist route
+    GoRoute(path: '/mypage/theme', builder: (_, __) => const ThemeSettingsScreen()), // Add Theme Settings route
+    GoRoute(path: '/mypage/account', builder: (_, __) => const AccountSettingsScreen()), // Add Account Settings route
+    GoRoute(path: '/mypage/edit-profile', builder: (_, __) => const EditProfileScreen()), // Add Edit Profile route
+    GoRoute(path: '/mypage/help-feedback', builder: (_, __) => const HelpFeedbackScreen()), // Add Help & Feedback route
+    GoRoute(path: '/mypage/notifications', builder: (_, __) => const NotificationSettingsScreen()), // Add Notification Settings route
+    GoRoute(path: '/mypage/projects', builder: (_, __) => const MyProjectsScreen()), // Add My Projects route
   ],
   redirect: (context, state) {
     final user = FirebaseAuth.instance.currentUser;
