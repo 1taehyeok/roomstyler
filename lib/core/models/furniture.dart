@@ -14,6 +14,8 @@ class Furniture {
   // --- 로컬 이미지 관련 필드 추가 ---
   final bool isLocalImage;
   final String? localImagePath;
+  // --- 키워드 검색을 위한 필드 추가 ---
+  final List<String> keywords;
   // --- 끝 ---
 
   Furniture({
@@ -32,6 +34,8 @@ class Furniture {
     // --- 로컬 이미지 관련 필드 추가 ---
     this.isLocalImage = false,
     this.localImagePath,
+    // --- 키워드 검색을 위한 필드 추가 ---
+    this.keywords = const [],
     // --- 끝 ---
   });
 
@@ -53,6 +57,8 @@ class Furniture {
       // --- 로컬 이미지 관련 필드 추가 ---
       isLocalImage: json['isLocalImage'] ?? false, // isLocalImage가 null이면 false
       localImagePath: json['localImagePath'], // localImagePath는 null 허용
+      // --- 키워드 검색을 위한 필드 추가 ---
+      keywords: List<String>.from(json['keywords'] ?? []),
       // --- 끝 ---
     );
   }
@@ -72,6 +78,8 @@ class Furniture {
     // --- 로컬 이미지 관련 필드 추가 ---
     'isLocalImage': isLocalImage,
     'localImagePath': localImagePath,
+    // --- 키워드 검색을 위한 필드 추가 ---
+    'keywords': keywords,
     // --- 끝 ---
   };
 }
