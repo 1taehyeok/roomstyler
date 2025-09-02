@@ -18,7 +18,12 @@ class MyProjectsScreen extends ConsumerStatefulWidget {
 class _MyProjectsScreenState extends ConsumerState<MyProjectsScreen> {
   bool _isSelectionMode = false;
   final Set<String> _selectedProjectIds = {}; // Store selected document IDs
+  
+  // Separate the data state from UI state
   List<String> _featuredProjectIds = []; // Store featured project IDs from Firestore
+  List<QueryDocumentSnapshot> _orderedDocuments = []; // Store ordered documents
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -39,161 +44,202 @@ class _MyProjectsScreenState extends ConsumerState<MyProjectsScreen> {
       );
     }
 
+    // Start listening to data streams
+    _listenToDataStreams(user.uid);
+    
+    // Build the main UI with the processed data
+    // The UI will rebuild when setState is called due to UI state changes
+    return Scaffold(
+      appBar: _buildAppBar(), // Use a separate method for AppBar
+      body: _buildBody(), // Use a separate method for body
+    );
+  }
+  
+  // Listen to data streams and update state
+  void _listenToDataStreams(String userId) {
     // Fetch user's featured project IDs
-    final userDocStream = FirebaseFirestore.instance
+    FirebaseFirestore.instance
         .collection('users')
-        .doc(user.uid)
-        .snapshots();
-
-    return StreamBuilder<DocumentSnapshot>(
-      stream: userDocStream,
-      builder: (context, userSnapshot) {
-        if (userSnapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (userSnapshot.hasData && userSnapshot.data!.exists) {
-          final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-          _featuredProjectIds = List<String>.from(
-              userData?['featuredProjects'] as List<dynamic>? ?? []);
-        } else {
-          _featuredProjectIds = [];
-        }
-
-        final projectsStream = FirebaseFirestore.instance
-            .collection('scenes')
-            .where('user_id', isEqualTo: user.uid)
-            .orderBy('created_at', descending: true)
-            .snapshots();
-
-        return StreamBuilder<QuerySnapshot>(
-          stream: projectsStream,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasError) {
-              return Scaffold(
-                body: Center(child: Text('오류 발생: ${snapshot.error}')),
-              );
-            }
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return Scaffold(
-                appBar: AppBar(
-                  title: const Text('내 프로젝트'),
-                  leading: IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => context.pop(),
-                  ),
-                  actions: _isSelectionMode
-                      ? [
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: _exitSelectionMode,
-                          ),
-                        ]
-                      : [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: _enterSelectionMode,
-                          ),
-                        ],
-                ),
-                body: const Center(child: Text('저장된 프로젝트가 없습니다.')),
-              );
-            }
-
-            final documents = snapshot.data!.docs;
-            // Create a map for quick access to documents by ID
-            final docMap = {for (var doc in documents) doc.id: doc};
-
-            // Reorder documents: featured first (in order), then the rest by created_at
-            final List<QueryDocumentSnapshot> orderedDocuments = [];
+        .doc(userId)
+        .snapshots()
+        .listen((userSnapshot) {
+          if (userSnapshot.exists) {
+            final userData = userSnapshot.data() as Map<String, dynamic>?;
+            final newFeaturedProjectIds = List<String>.from(
+                userData?['featuredProjects'] as List<dynamic>? ?? []);
             
-            // Add featured projects in order
-            for (String id in _featuredProjectIds) {
-              if (docMap.containsKey(id)) {
-                orderedDocuments.add(docMap[id]!);
-              }
+            // Only update if the data has changed
+            if (!_listsEqual(_featuredProjectIds, newFeaturedProjectIds)) {
+              setState(() {
+                _featuredProjectIds = newFeaturedProjectIds;
+                // Re-order documents if projects are already loaded
+                if (_orderedDocuments.isNotEmpty) {
+                  _orderedDocuments = _reorderDocuments(_orderedDocuments, _featuredProjectIds);
+                }
+              });
             }
-            
-            // Add non-featured projects
-            for (var doc in documents) {
-              if (!_featuredProjectIds.contains(doc.id)) {
-                orderedDocuments.add(doc);
-              }
-            }
+          } else {
+             if (_featuredProjectIds.isNotEmpty) {
+               setState(() {
+                 _featuredProjectIds = [];
+                 // Re-order documents if projects are already loaded
+                 if (_orderedDocuments.isNotEmpty) {
+                   _orderedDocuments = _reorderDocuments(_orderedDocuments, _featuredProjectIds);
+                 }
+               });
+             }
+          }
+        }, onError: (error) {
+          setState(() {
+            _errorMessage = '사용자 데이터 로드 중 오류: $error';
+          });
+        });
 
-            return Scaffold(
-              appBar: AppBar(
-                title: _isSelectionMode
-                    ? Text('${_selectedProjectIds.length}개 선택됨')
-                    : const Text('내 프로젝트'),
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => context.pop(),
-                ),
-                actions: _isSelectionMode
-                    ? [
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: _selectedProjectIds.isNotEmpty
-                              ? _confirmDeleteSelected
-                              : null,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: _exitSelectionMode,
-                        ),
-                      ]
-                    : [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: _enterSelectionMode,
-                        ),
-                      ],
+    // Fetch projects
+    FirebaseFirestore.instance
+        .collection('scenes')
+        .where('user_id', isEqualTo: userId)
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .listen((projectsSnapshot) {
+          setState(() {
+            _errorMessage = null;
+          });
+          
+          final documents = projectsSnapshot.docs;
+          final orderedDocs = _reorderDocuments(documents, _featuredProjectIds);
+          
+          setState(() {
+            _orderedDocuments = orderedDocs;
+          });
+        }, onError: (error) {
+          setState(() {
+            _errorMessage = '프로젝트 데이터 로드 중 오류: $error';
+          });
+        });
+  }
+  
+  // Helper method to reorder documents
+  List<QueryDocumentSnapshot> _reorderDocuments(List<QueryDocumentSnapshot> documents, List<String> featuredIds) {
+    // Create a map for quick access to documents by ID
+    final docMap = {for (var doc in documents) doc.id: doc};
+
+    // Reorder documents: featured first (in order), then the rest by created_at
+    final List<QueryDocumentSnapshot> orderedDocuments = [];
+    
+    // Add featured projects in order
+    for (String id in featuredIds) {
+      if (docMap.containsKey(id)) {
+        orderedDocuments.add(docMap[id]!);
+      }
+    }
+    
+    // Add non-featured projects
+    for (var doc in documents) {
+      if (!featuredIds.contains(doc.id)) {
+        orderedDocuments.add(doc);
+      }
+    }
+    
+    return orderedDocuments;
+  }
+  
+  // Helper method to compare lists
+  bool _listsEqual(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  // Separate AppBar building logic
+  AppBar _buildAppBar() {
+    return AppBar(
+      title: _isSelectionMode
+          ? Text('${_selectedProjectIds.length}개 선택됨')
+          : const Text('내 프로젝트'),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.pop(),
+      ),
+      actions: _isSelectionMode
+          ? [
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: _selectedProjectIds.isNotEmpty
+                    ? _confirmDeleteSelected
+                    : null,
               ),
-              body: GridView.builder(
-                padding: const EdgeInsets.all(16.0),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16.0,
-                  mainAxisSpacing: 16.0,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: orderedDocuments.length,
-                itemBuilder: (context, index) {
-                  final doc = orderedDocuments[index];
-                  final scene = Scene.fromJson(
-                      doc.data() as Map<String, dynamic>, doc.id);
-                  final isFeatured = _featuredProjectIds.contains(doc.id);
-                  
-                  return _ProjectCard(
-                    scene: scene,
-                    isSelectionMode: _isSelectionMode,
-                    isSelected: _selectedProjectIds.contains(doc.id),
-                    isFeatured: isFeatured,
-                    onSelect: () => _toggleSelection(doc.id),
-                    onToggleFeature: () => _toggleFeatured(user.uid, doc.id, isFeatured),
-                    onEdit: () {
-                      ref.read(currentSceneProvider.notifier).state = scene;
-                      context.push('/editor', extra: scene.roomId);
-                    },
-                    onDelete: () => _confirmDelete(context, doc.id, scene),
-                    onShare: () {
-                      ref.read(currentSceneProvider.notifier).state = scene;
-                      context.push('/preview');
-                    },
-                    onRename: (newName) => _renameProject(doc.id, newName),
-                  );
-                },
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
               ),
-            );
+            ]
+          : [
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: _enterSelectionMode,
+              ),
+            ],
+    );
+  }
+  
+  // Separate body building logic
+  Widget _buildBody() {
+    if (_errorMessage != null) {
+      return Center(child: Text(_errorMessage!));
+    }
+    
+    if (_orderedDocuments.isEmpty) {
+      // Check if data is still loading
+      // For simplicity, we assume if there's no error and no data, it's loading
+      // A more robust solution would track loading state separately
+      if (_featuredProjectIds.isEmpty) {
+         return const Center(child: CircularProgressIndicator());
+      }
+      return const Center(child: Text('저장된 프로젝트가 없습니다.'));
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16.0),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16.0,
+        mainAxisSpacing: 16.0,
+        childAspectRatio: 0.85,
+      ),
+      itemCount: _orderedDocuments.length,
+      itemBuilder: (context, index) {
+        final doc = _orderedDocuments[index];
+        final scene = Scene.fromJson(
+            doc.data() as Map<String, dynamic>, doc.id);
+        final isFeatured = _featuredProjectIds.contains(doc.id);
+        
+        return _ProjectCard(
+          scene: scene,
+          isSelectionMode: _isSelectionMode,
+          isSelected: _selectedProjectIds.contains(doc.id),
+          isFeatured: isFeatured,
+          onSelect: () => _toggleSelection(doc.id),
+          onTap: () {
+            // Navigate to editor with this scene when not in selection mode
+            if (!_isSelectionMode) {
+              ref.read(currentSceneProvider.notifier).state = scene;
+              context.push('/editor', extra: scene.roomId);
+            }
           },
+          onToggleFeature: () => _toggleFeatured(FirebaseAuth.instance.currentUser!.uid, doc.id, isFeatured),
+          onEdit: () {
+            ref.read(currentSceneProvider.notifier).state = scene;
+            context.push('/editor', extra: scene.roomId);
+          },
+          onDelete: () => _confirmDelete(context, doc.id, scene),
+          onShare: () {
+            ref.read(currentSceneProvider.notifier).state = scene;
+            context.push('/preview');
+          },
+          onRename: (newName) => _renameProject(doc.id, newName),
         );
       },
     );
@@ -247,6 +293,9 @@ class _MyProjectsScreenState extends ConsumerState<MyProjectsScreen> {
           'featuredProjects': FieldValue.arrayUnion([docId])
         });
       }
+      
+      // No need to manually update _featuredProjectIds or _orderedDocuments
+      // The stream listener will handle it
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -372,6 +421,7 @@ class _ProjectCard extends StatefulWidget {
   final bool isSelected;
   final bool isFeatured;
   final VoidCallback onSelect;
+  final VoidCallback onTap; // Add onTap callback
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onShare;
@@ -384,6 +434,7 @@ class _ProjectCard extends StatefulWidget {
     required this.isSelected,
     required this.isFeatured,
     required this.onSelect,
+    required this.onTap, // Add onTap to constructor
     required this.onEdit,
     required this.onDelete,
     required this.onShare,
@@ -471,7 +522,7 @@ class _ProjectCardState extends State<_ProjectCard> {
       child: Stack(
         children: [
           InkWell(
-            onTap: widget.isSelectionMode ? widget.onSelect : null,
+            onTap: widget.isSelectionMode ? widget.onSelect : widget.onTap,
             onLongPress: widget.isSelectionMode
                 ? null
                 : () {

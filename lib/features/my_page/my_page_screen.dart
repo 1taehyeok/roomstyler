@@ -7,12 +7,13 @@ import 'package:roomstyler/core/models/scene.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 import 'package:roomstyler/state/wishlist_provider.dart'; // Import wishlist provider
+import 'package:roomstyler/state/scene_providers.dart'; // Import scene providers
 
-class MyPageScreen extends StatelessWidget {
+class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -38,14 +39,14 @@ class MyPageScreen extends StatelessWidget {
             context.push('/mypage/notifications');
           }),
           _buildSettingsTile(context, Icons.brightness_6, '테마 설정', () {
-            // 테마 설정 화면으로 이동
+            // Navigate to theme settings screen
             context.push('/mypage/theme');
           }),
           const SizedBox(height: 20),
 
           // --- My Projects Section ---
           _buildSectionTitle(context, '내 프로젝트'),
-          _buildMyProjectsSection(context, user),
+          _buildMyProjectsSection(context, user, ref),
           const SizedBox(height: 20),
 
           // --- Wishlist Section ---
@@ -171,7 +172,7 @@ class MyPageScreen extends StatelessWidget {
   }
 
   /// Builds the "My Projects" section
-  Widget _buildMyProjectsSection(BuildContext context, User? user) {
+  Widget _buildMyProjectsSection(BuildContext context, User? user, WidgetRef ref) {
     if (user == null) {
       return const Card(
         child: Padding(
@@ -210,11 +211,9 @@ class MyPageScreen extends StatelessWidget {
               children: documents.map((doc) {
                 final scene = Scene.fromJson(doc.data() as Map<String, dynamic>, doc.id);
                 return _ProjectCard(scene: scene, onTap: () {
-                  // TODO: Navigate to editor with this scene
-                  // For now, show a snackbar
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('프로젝트 클릭됨: ${scene.id.substring(0, 8)}')),
-                  );
+                  // Navigate to editor with this scene
+                  ref.read(currentSceneProvider.notifier).state = scene;
+                  context.push('/editor', extra: scene.roomId);
                 });
               }).toList(),
             );
