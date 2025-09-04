@@ -264,6 +264,18 @@ class MyPageScreen extends ConsumerWidget {
                 );
               },
             ),
+            const SizedBox(height: 8),
+            // Add a button to navigate to the cart screen
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  // Navigate to the cart screen
+                  context.push('/cart');
+                },
+                child: const Text('장바구니 보기'),
+              ),
+            ),
           ],
         ),
       ),

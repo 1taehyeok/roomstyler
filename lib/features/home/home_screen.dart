@@ -30,12 +30,11 @@ class HomeScreen extends ConsumerWidget {
               );
             },
           ),
+          // Cart button
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: '로그아웃',
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-            },
+            icon: const Icon(Icons.shopping_cart),
+            tooltip: '장바구니',
+            onPressed: () => context.push('/cart'),
           ),
         ],
       ),

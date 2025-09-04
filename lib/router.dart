@@ -5,6 +5,8 @@ import 'package:roomstyler/features/auth/sign_up_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/room_upload/room_upload_screen.dart';
 import 'features/catalog/catalog_screen.dart';
+import 'features/catalog/furniture_detail_screen.dart'; // Import FurnitureDetailScreen
+import 'features/catalog/cart_screen.dart'; // Import CartScreen
 import 'features/editor/editor_screen.dart';
 import 'features/preview_share/preview_share_screen.dart';
 import 'features/auth/sign_in_screen.dart';
@@ -25,6 +27,14 @@ final router = GoRouter(
     GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
     GoRoute(path: '/upload', builder: (_, __) => const RoomUploadScreen()),
     GoRoute(path: '/catalog', builder: (_, __) => const CatalogScreen()),
+    GoRoute(
+      path: '/catalog/:furnitureId',
+      builder: (context, state) {
+        final furnitureId = state.pathParameters['furnitureId']!;
+        return FurnitureDetailScreen(furnitureId: furnitureId);
+      },
+    ), // Add Furniture Detail route
+    GoRoute(path: '/cart', builder: (_, __) => const CartScreen()), // Add Cart route
     GoRoute(
   path: '/editor',
   builder: (context, state) {

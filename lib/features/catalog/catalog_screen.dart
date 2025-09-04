@@ -54,6 +54,13 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('가구 카탈로그'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            tooltip: '장바구니',
+            onPressed: () => context.push('/cart'),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -135,6 +142,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           ),
                         );
                       },
+                      // Add onTap to navigate to detail screen
+                      onTap: () => context.push('/catalog/${furniture.id}'),
                     );
                   },
                 );
@@ -150,56 +159,14 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 class _FurnitureCard extends ConsumerWidget {
   final Furniture furniture;
   final VoidCallback onAdd;
-  const _FurnitureCard({required this.furniture, required this.onAdd});
+  final VoidCallback onTap; // Add onTap callback
+  const _FurnitureCard({required this.furniture, required this.onAdd, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: InkWell(
-        onTap: () async {
-          // 카드를 탭했을 때 확인 팝업 띄우기
-          final bool? confirm = await showDialog<bool>(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('찜하기'),
-                content: Text('${furniture.name}을(를) 찜하시겠습니까?'),
-                actions: <Widget>[
-                  TextButton(
-                    child: const Text('취소'),
-                    onPressed: () {
-                      Navigator.of(context).pop(false); // 취소
-                    },
-                  ),
-                  TextButton(
-                    child: const Text('찜하기'),
-                    onPressed: () {
-                      Navigator.of(context).pop(true); // 확인
-                    },
-                  ),
-                ],
-              );
-            },
-          );
-
-          // 사용자가 "찜하기"를 선택한 경우
-          if (confirm == true) {
-            // 찜 상태 변경 요청 및 Firestore 업데이트 완료 대기
-            await ref.read(wishlistProvider.notifier).toggleItem(furniture.id);
-            // Firestore 업데이트가 반영된 최신 상태를 가져옵니다.
-            final updatedWishlist = ref.read(wishlistProvider);
-            final isNowWishlisted = updatedWishlist.any((item) => item.id == furniture.id);
-            
-            // 사용자 피드백
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(
-                      isNowWishlisted
-                          ? '${furniture.name}이(가) 찜 목록에 추가되었습니다.'
-                          : '${furniture.name}이(가) 찜 목록에서 제거되었습니다.')),
-            );
-          }
-        },
+        onTap: onTap, // Use the provided onTap callback
         child: Stack(
           children: [
             Column(
