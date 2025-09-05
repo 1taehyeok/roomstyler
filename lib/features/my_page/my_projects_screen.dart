@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:roomstyler/core/models/scene.dart';
+import 'package:roomstyler/services/scene_service.dart'; // SceneService 임포트 추가
 import 'package:roomstyler/state/scene_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -328,11 +329,11 @@ class _MyProjectsScreenState extends ConsumerState<MyProjectsScreen> {
 
     if (confirmed == true) {
       try {
-        final batch = FirebaseFirestore.instance.batch();
+        // 각 선택된 프로젝트를 SceneService를 통해 삭제 (Storage 이미지도 함께 삭제)
+        final sceneService = SceneService();
         for (String docId in _selectedProjectIds) {
-          batch.delete(FirebaseFirestore.instance.collection('scenes').doc(docId));
+          await sceneService.deleteScene(docId);
         }
-        await batch.commit();
         
         if (mounted) {
           _exitSelectionMode(); // Exit selection mode after deletion
@@ -375,7 +376,10 @@ class _MyProjectsScreenState extends ConsumerState<MyProjectsScreen> {
 
     if (confirmed == true) {
       try {
-        await FirebaseFirestore.instance.collection('scenes').doc(docId).delete();
+        // SceneService를 사용하여 씬과 관련된 Storage 이미지까지 모두 삭제
+        final sceneService = SceneService();
+        await sceneService.deleteScene(docId);
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('프로젝트가 삭제되었습니다.')),

@@ -1,6 +1,42 @@
-I/flutter (16649): DEBUG: SceneController.startOperation called. _isOperationActive: true
-I/flutter (16649): DEBUG: _EditorCanvasState.onScaleStart called for item index: 0
-I/flutter (16649): DEBUG: SceneController.endOperation called. _isOperationActive: true, _operationOriginalState is null: false
-I/flutter (16649): DEBUG: SceneHistoryController.push called. _undoStack length: 1
-I/flutter (16649): DEBUG: SceneHistoryController state updated to: 1
-I/flutter (16649): DEBUG: _EditorCanvasState.onScaleEnd called
+W/WindowOnBackDispatcher(11732): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(11732): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 0
+D/Activity(11732): onKeyDown(KEYCODE_BACK), activity=com.example.roomstyler.MainActivity@482245c
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 1
+W/WindowOnBackDispatcher(11732): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(11732): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 0
+D/Activity(11732): onKeyDown(KEYCODE_BACK), activity=com.example.roomstyler.MainActivity@482245c
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 1
+W/WindowOnBackDispatcher(11732): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(11732): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 0
+D/Activity(11732): onKeyDown(KEYCODE_BACK), activity=com.example.roomstyler.MainActivity@482245c
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 1
+W/WindowOnBackDispatcher(11732): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(11732): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/ImeFocusController(11732): onPreWindowFocus: skipped hasWindowFocus=false mHasImeFocus=true
+I/ImeFocusController(11732): onPostWindowFocus: skipped hasWindowFocus=false mHasImeFocus=true
+D/InputTransport(11732): Input channel destroyed: 'ClientS', fd=198
+I/InsetsSourceConsumer(11732): applyRequestedVisibilityToControl: visible=true, type=statusBars, host=com.example.roomstyler/com.example.roomstyler.MainActivity
+I/InsetsSourceConsumer(11732): applyRequestedVisibilityToControl: visible=true, type=navigationBars, host=com.example.roomstyler/com.example.roomstyler.MainActivity
+D/VRI[MainActivity]@f53d0ef(11732): mThreadedRenderer.initializeIfNeeded()#2 mSurface={isValid=true 0xb4000074709a4e50}
+D/InputMethodManagerUtils(11732): startInputInner - Id : 0
+I/InputMethodManager(11732): startInputInner - IInputMethodManagerGlobalInvoker.startInputOrWindowGainedFocus
+D/InputTransport(11732): Input channel constructed: 'ClientS', fd=220
+I/InsetsSourceConsumer(11732): applyRequestedVisibilityToControl: visible=false, type=ime, host=com.example.roomstyler/com.example.roomstyler.MainActivity
+I/VRI[MainActivity]@f53d0ef(11732): call setFrameRateCategory for touch hint category=no preference, reason=boost timeout, vri=VRI[MainActivity]@f53d0ef
+I/VRI[MainActivity]@f53d0ef(11732): call setFrameRateCategory for touch hint category=high hint, reason=touch, vri=VRI[MainActivity]@f53d0ef
+I/flutter (11732): DEBUG: Undo Consumer builder called
+I/flutter (11732): DEBUG: canUndo value is false
+W/WindowOnBackDispatcher(11732): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(11732): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/VRI[MainActivity]@f53d0ef(11732): call setFrameRateCategory for touch hint category=no preference, reason=boost timeout, vri=VRI[MainActivity]@f53d0ef
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 0
+D/Activity(11732): onKeyDown(KEYCODE_BACK), activity=com.example.roomstyler.MainActivity@482245c
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 1
+W/WindowOnBackDispatcher(11732): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(11732): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 0
+D/Activity(11732): onKeyDown(KEYCODE_BACK), activity=com.example.roomstyler.MainActivity@482245c
+I/VRI[MainActivity]@f53d0ef(11732): ViewPostIme key 1

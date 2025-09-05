@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:roomstyler/core/models/scene.dart';
+import 'package:roomstyler/services/scene_service.dart'; // SceneService 임포트 추가
 import 'package:roomstyler/state/scene_providers.dart';
 import 'package:roomstyler/state/wishlist_provider.dart'; // 찜 목록 Provider 임포트
 import 'package:intl/intl.dart'; // 날짜 포맷팅을 위해 추가
@@ -265,8 +266,10 @@ class _UserProjectsList extends StatelessWidget {
 
     if (confirmed == true) {
       try {
-        // Firestore에서 문서 삭제
-        await FirebaseFirestore.instance.collection('scenes').doc(docId).delete();
+        // SceneService를 사용하여 씬과 관련된 Storage 이미지까지 모두 삭제
+        final sceneService = SceneService();
+        await sceneService.deleteScene(docId);
+        
         // 성공 메시지 표시
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:roomstyler/core/models/scene.dart';
 import 'package:roomstyler/state/scene_providers.dart';
+import 'package:roomstyler/utils/image_loader.dart'; // Import ImageLoader
 import 'dart:io';
 import 'dart:math';
 import '_furniture_item_view.dart';
@@ -48,20 +49,13 @@ class _EditorCanvasState extends ConsumerState<EditorCanvas> {
           },
           child: Stack(
             children: [
-              // 배경 이미지
+              // 배경 이미지 (로컬 파일 경로와 Firebase Storage URL 모두 처리)
               if (widget.backgroundImage != null)
-                Image.file(
-                  File(widget.backgroundImage!),
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.contain,
-                )
-              else
-                Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  color: Colors.grey[200],
-                  child: const Center(child: Text('여기에 방 배경이 표시됩니다.')),
+                Positioned.fill(
+                  child: ImageLoader.loadImage(
+                    imageSource: widget.backgroundImage,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               // 휴지통 아이콘
               Positioned(
