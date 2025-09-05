@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // FirebaseAuth 추가
-// import 'package:firebase_storage/firebase_storage.dart'; // Firebase Storage 추가 (주석 처리)
+import 'package:firebase_storage/firebase_storage.dart'; // Firebase Storage 추가
 import 'package:image_picker/image_picker.dart'; // ImagePicker 추가
-import 'package:path_provider/path_provider.dart'; // path_provider 추가
+import 'package:path/path.dart' as path; // path 추가
 import 'package:roomstyler/core/models/furniture.dart';
 import 'package:roomstyler/core/models/scene.dart'; // SceneLayoutItem 임포트 추가
+import 'package:roomstyler/services/firebase_storage_service.dart'; // FirebaseStorageService 추가
 import 'package:roomstyler/state/scene_providers.dart';
 import 'package:roomstyler/state/wishlist_provider.dart';
 import '_wishlist_item.dart'; // 찜 목록 아이템 위젯 임포트
@@ -191,27 +192,18 @@ class _WishlistPanelState extends ConsumerState<WishlistPanel> {
     );
   }
 
-  // --- 변경 11: 사용자 정의 이미지 추가 로직 (로컬 저장) ---
+  // --- 변경 11: 사용자 정의 이미지 추가 로직 (Firebase Storage 사용) ---
   Future<void> _pickAndUploadCustomImage() async { // 메소드명은 그대로 사용
     try {
       // 1. 이미지 선택
       final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery); // 또는 .camera
       if (pickedFile == null) return; // 사용자가 취소한 경우
 
-      // 2. 앱의 Documents 디렉토리에 이미지 복사
-      final appDocDir = await getApplicationDocumentsDirectory();
-      final wishlistDir = Directory('${appDocDir.path}/wishlist_images');
-      // wishlist_images 폴더가 없으면 생성
-      if (!await wishlistDir.exists()) {
-        await wishlistDir.create(recursive: true);
-      }
-      
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name}';
-      final localImagePath = '${wishlistDir.path}/$fileName';
-
-      // 파일 복사
+      // 2. Firebase Storage에 이미지 업로드
+      final FirebaseStorageService storageService = FirebaseStorageService();
       final imageFile = File(pickedFile.path);
-      await imageFile.copy(localImagePath);
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(pickedFile.path)}';
+      final downloadUrl = await storageService.uploadImageFile(imageFile, folder: 'wishlist_images');
 
       // 3. (선택사항) 사용자에게 이름 입력 받기
       String itemName = '사용자 추가 가구';
@@ -245,12 +237,12 @@ class _WishlistPanelState extends ConsumerState<WishlistPanel> {
       }
       // --- 선택사항 끝 ---
 
-      // 4. 로컬 경로와 이름을 포함한 데이터 Map 생성 및 Firestore에 추가
+      // 4. Storage URL과 이름을 포함한 데이터 Map 생성 및 Firestore에 추가
       final customFurnitureData = {
         'name': itemName,
-        'localImagePath': localImagePath, // <-- 로컬 경로 저장
+        'imageUrl': downloadUrl, // <-- Firebase Storage URL 저장
         'category': 'custom', // (선택사항) 구분을 위한 카테고리
-        'isLocalImage': true, // <-- 로컬 이미지임을 표시
+        'isLocalImage': false, // <-- 로컬 이미지가 아님을 표시
         // 나머지 필드는 기본값 또는 null
         'sku': '', // 빈 문자열로 초기화
         'size_width': 0, // 기본값 0
@@ -260,7 +252,7 @@ class _WishlistPanelState extends ConsumerState<WishlistPanel> {
         'material': '', // 빈 문자열로 초기화
         'price': 0.0, // 기본값 0.0
         'affiliate_url': null, // null로 초기화
-        'imageUrl': null, // Firebase Storage URL은 사용하지 않음
+        'localImagePath': null, // 로컬 경로는 사용하지 않음
       };
 
       // wishlistProvider에 addItem 메소드가 있어야 함 (Map 전달)

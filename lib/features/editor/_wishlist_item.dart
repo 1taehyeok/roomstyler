@@ -43,22 +43,9 @@ class WishlistItem extends ConsumerWidget {
             // --- 수정: feedback 위젯도 로컬/네트워크 이미지 구분 ---
             child: LayoutBuilder(
               builder: (context, constraints) {
-                if (furniture.isLocalImage == true && furniture.localImagePath != null) {
-                  // 로컬 이미지 표시
-                  return Image.file(
-                    File(furniture.localImagePath!),
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 80,
-                      height: 80,
-                      color: Colors.red.withOpacity(0.5),
-                      child: const Icon(Icons.error),
-                    ),
-                  );
-                } else if (furniture.imageUrl != null && furniture.imageUrl!.isNotEmpty) {
-                  // 네트워크 이미지 표시
+                // Firebase Storage URL 또는 로컬 이미지 경로 처리
+                if (furniture.imageUrl != null && furniture.imageUrl!.isNotEmpty) {
+                  // Firebase Storage URL 이미지 표시
                   return CachedNetworkImage(
                     imageUrl: furniture.imageUrl!,
                     width: 80,
@@ -74,6 +61,20 @@ class WishlistItem extends ConsumerWidget {
                       width: 80,
                       height: 80,
                       color: Colors.grey[300],
+                      child: const Icon(Icons.error),
+                    ),
+                  );
+                } else if (furniture.isLocalImage == true && furniture.localImagePath != null) {
+                  // 로컬 이미지 표시
+                  return Image.file(
+                    File(furniture.localImagePath!),
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 80,
+                      height: 80,
+                      color: Colors.red.withOpacity(0.5),
                       child: const Icon(Icons.error),
                     ),
                   );
@@ -136,62 +137,60 @@ class WishlistItem extends ConsumerWidget {
                   builder: (context, constraints) {
                     final furnitureMap = furniture.toJson(); // Furniture 객체를 Map으로 변환
                     // 로컬 이미지 표시 로직
-                    if (furniture.imageUrl != null &&
-                        furniture.imageUrl!.isNotEmpty &&
-                        (furnitureMap['isLocalImage'] == null ||
-                            furnitureMap['isLocalImage'] == false)) {
-                      // 기존 방식: CachedNetworkImage 사용 (isLocalImage가 없거나 false인 경우)
-                      return CachedNetworkImage(
-                        imageUrl: furniture.imageUrl!,
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
+                    // Firebase Storage URL 또는 로컬 이미지 경로 처리
+                      if (furnitureMap['imageUrl'] != null) {
+                        // Firebase Storage URL 이미지 표시 (CachedNetworkImage 사용)
+                        return CachedNetworkImage(
+                          imageUrl: furnitureMap['imageUrl'] as String,
                           width: 80,
                           height: 80,
-                          color: Colors.grey[300],
-                          child: const Center(child: CircularProgressIndicator()),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          width: 80,
-                          height: 80,
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.error),
-                        ),
-                      );
-                    } else if (furnitureMap['isLocalImage'] == true &&
-                        furnitureMap['localImagePath'] != null) {
-                      // 새로운 방식: 로컬 이미지 표시
-                      final localPath = furnitureMap['localImagePath'] as String;
-                      return Image.file(
-                        File(localPath),
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 80,
-                          height: 80,
-                          color: Colors.red.withOpacity(0.5),
-                          child: const Icon(Icons.error),
-                        ),
-                      );
-                    } else {
-                      // 둘 다 없거나 유효하지 않은 경우, 기본 플레이스홀더
-                      return Container(
-                        width: 80,
-                        height: 80,
-                        color: Colors.grey[300],
-                        child: Center(
-                          child: Text(
-                            furniture.name,
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
-                            style: const TextStyle(fontSize: 10),
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            width: 80,
+                            height: 80,
+                            color: Colors.grey[300],
+                            child: const Center(child: CircularProgressIndicator()),
                           ),
-                        ),
-                      );
-                    }
+                          errorWidget: (context, url, error) => Container(
+                            width: 80,
+                            height: 80,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.error),
+                          ),
+                        );
+                      } else if (furnitureMap['isLocalImage'] == true &&
+                          furnitureMap['localImagePath'] != null) {
+                        // 로컬 이미지 표시
+                        final localPath = furnitureMap['localImagePath'] as String;
+                        return Image.file(
+                          File(localPath),
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 80,
+                            height: 80,
+                            color: Colors.red.withOpacity(0.5),
+                            child: const Icon(Icons.error),
+                          ),
+                        );
+                      } else {
+                        // 둘 다 없거나 유효하지 않은 경우, 기본 플레이스홀더
+                        return Container(
+                          width: 80,
+                          height: 80,
+                          color: Colors.grey[300],
+                          child: Center(
+                            child: Text(
+                              furniture.name,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ),
+                        );
+                      }
                   },
                 ),
               ),

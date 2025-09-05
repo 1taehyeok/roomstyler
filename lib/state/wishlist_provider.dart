@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:roomstyler/core/models/furniture.dart'; // Furniture 모델 임포트
+import 'package:roomstyler/services/firebase_storage_service.dart'; // FirebaseStorageService 임포트
 
 // 찜 목록 상태를 관리하는 Notifier 클래스
 // --- 변경: state 타입을 Set<String>에서 List<Furniture>로 ---
@@ -149,7 +150,25 @@ class WishlistNotifier extends Notifier<List<Furniture>> {
       print('WishlistNotifier: 로그인하지 않은 사용자는 찜 목록을 조작할 수 없습니다.');
       return;
     }
+    
     final wishlistRef = _firestore.collection('users').doc(_user!.uid).collection('wishlist');
+    
+    // 먼저 문서를 가져와서 Storage 이미지 URL이 있는지 확인
+    final docSnapshot = await wishlistRef.doc(furnitureId).get();
+    if (docSnapshot.exists) {
+      final furnitureData = docSnapshot.data() as Map<String, dynamic>?;
+      
+      // Firebase Storage 이미지 삭제 (imageUrl이 있는 경우)
+      if (furnitureData != null && furnitureData['imageUrl'] != null) {
+        try {
+          final storageService = FirebaseStorageService();
+          await storageService.deleteImage(furnitureData['imageUrl'] as String);
+        } catch (e) {
+          print('WishlistNotifier: Firebase Storage 이미지 삭제 중 오류 발생: $e');
+        }
+      }
+    }
+    
     // 해당 문서 삭제
     await wishlistRef.doc(furnitureId).delete();
     // 로컬 상태는 Firestore 리스너가 자동으로 업데이트하므로 여기서 직접 변경하지 않아도 됩니다.
