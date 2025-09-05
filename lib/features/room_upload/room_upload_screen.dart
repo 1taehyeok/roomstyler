@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http; // http 패키지 사용
 import 'dart:typed_data'; // Uint8List를 위해 필요
 import 'package:roomstyler/config.dart'; // Config 임포트
 import 'package:roomstyler/services/gemini_api_service.dart'; // GeminiLiveApiService 임포트
+import 'package:roomstyler/utils/image_processor.dart'; // ImageProcessor 임포트 추가
 import 'new_project_initializer.dart'; // 새로 추가한 파일 임포트
 
 class RoomUploadScreen extends StatefulWidget {
@@ -232,19 +233,26 @@ class _RoomUploadScreenState extends State<RoomUploadScreen> {
       );
 
       if (processedImageBytes != null) {
-        // 4. 처리된 이미지를 임시 파일로 저장
+        // 4. 이미지 최적화 (리사이징 및 압축)
+        final optimizedImageBytes = await ImageProcessor.resizeAndCompressImageBytes(
+          processedImageBytes,
+          maxWidth: 1920,
+          quality: 80,
+        );
+        
+        // 5. 최적화된 이미지를 임시 파일로 저장
         final tempDir = Directory.systemTemp;
-        final tempFile = File('${tempDir.path}/gemini_live_furniture_removed.jpg');
-        await tempFile.writeAsBytes(processedImageBytes);
+        final tempFile = File('${tempDir.path}/gemini_live_furniture_removed_optimized.jpg');
+        await tempFile.writeAsBytes(optimizedImageBytes);
         final processedImagePath = tempFile.path;
-        print('Gemini Live (가구 제거된) 이미지가 임시 파일에 저장됨: $processedImagePath');
+        print('Gemini Live (가구 제거된, 최적화된) 이미지가 임시 파일에 저장됨: $processedImagePath');
 
-        // 5. 처리된 이미지 경로를 /editor 화면으로 전달
+        // 6. 처리된 이미지 경로를 /editor 화면으로 전달
         if (mounted) {
           context.push('/editor', extra: processedImagePath);
         }
       } else {
-        // 6. 처리 실패
+        // 7. 처리 실패
         throw Exception('Gemini Live API 호출에 실패했습니다. 처리된 이미지를 받지 못했습니다.');
       }
       // --- 새로운 Google Gemini Live 2.5 Flash Preview API 로직 끝 ---

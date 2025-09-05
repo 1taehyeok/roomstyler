@@ -48,6 +48,8 @@ dependencies:
   firebase_app_check: ^0.4.0
   firebase_storage: ^13.0.0
   path_provider: ^2.1.1
+  # 이미지 처리를 위한 패키지
+  image: ^4.0.17
 
   # Gemini API 사용을 위한 공식 패키지
   google_generative_ai: ^0.4.0 

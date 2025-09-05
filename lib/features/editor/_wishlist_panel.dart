@@ -1,6 +1,7 @@
 // lib/features/editor/_wishlist_panel.dart
 import 'dart:math'; // sqrt를 사용하기 위해 필요
 import 'dart:io'; // File을 사용하기 위해 필요
+import 'dart:typed_data'; // Uint8List를 사용하기 위해 필요
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +12,7 @@ import 'package:path/path.dart' as path; // path 추가
 import 'package:roomstyler/core/models/furniture.dart';
 import 'package:roomstyler/core/models/scene.dart'; // SceneLayoutItem 임포트 추가
 import 'package:roomstyler/services/firebase_storage_service.dart'; // FirebaseStorageService 추가
+import 'package:roomstyler/utils/image_processor.dart'; // ImageProcessor 추가
 import 'package:roomstyler/state/scene_providers.dart';
 import 'package:roomstyler/state/wishlist_provider.dart';
 import '_wishlist_item.dart'; // 찜 목록 아이템 위젯 임포트
@@ -192,20 +194,31 @@ class _WishlistPanelState extends ConsumerState<WishlistPanel> {
     );
   }
 
-  // --- 변경 11: 사용자 정의 이미지 추가 로직 (Firebase Storage 사용) ---
+  // --- 변경: 사용자 정의 가구 추가 메소드 수정 (Firebase Storage 사용 + 이미지 최적화) ---
   Future<void> _pickAndUploadCustomImage() async { // 메소드명은 그대로 사용
     try {
       // 1. 이미지 선택
       final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery); // 또는 .camera
       if (pickedFile == null) return; // 사용자가 취소한 경우
 
-      // 2. Firebase Storage에 이미지 업로드
-      final FirebaseStorageService storageService = FirebaseStorageService();
+      // 2. 이미지 최적화 (리사이징 및 압축)
       final imageFile = File(pickedFile.path);
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(pickedFile.path)}';
-      final downloadUrl = await storageService.uploadImageFile(imageFile, folder: 'wishlist_images');
+      final optimizedImageBytes = await ImageProcessor.resizeAndCompressImage(
+        imageFile,
+        maxWidth: 1024, // 찜 목록 이미지는 더 작은 크기로
+        quality: 75,
+      );
 
-      // 3. (선택사항) 사용자에게 이름 입력 받기
+      // 3. Firebase Storage에 최적화된 이미지 업로드
+      final FirebaseStorageService storageService = FirebaseStorageService();
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(pickedFile.path)}';
+      final downloadUrl = await storageService.uploadImageBytes(
+        optimizedImageBytes, 
+        fileName, 
+        folder: 'wishlist_images'
+      );
+
+      // 4. (선택사항) 사용자에게 이름 입력 받기
       String itemName = '사용자 추가 가구';
       // --- 선택사항 시작: 이름 입력 다이얼로그 ---
       final TextEditingController nameController = TextEditingController();
@@ -216,7 +229,7 @@ class _WishlistPanelState extends ConsumerState<WishlistPanel> {
             title: const Text('가구 이름 입력'),
             content: TextField(
               controller: nameController,
-              decoration: const InputDecoration(hintText: "가구의 이름을 입력하세요"),
+              decoration: const InputDecoration(hintText: '가구의 이름을 입력하세요'),
               autofocus: true,
             ),
             actions: <Widget>[
@@ -237,7 +250,7 @@ class _WishlistPanelState extends ConsumerState<WishlistPanel> {
       }
       // --- 선택사항 끝 ---
 
-      // 4. Storage URL과 이름을 포함한 데이터 Map 생성 및 Firestore에 추가
+      // 5. Storage URL과 이름을 포함한 데이터 Map 생성 및 Firestore에 추가
       final customFurnitureData = {
         'name': itemName,
         'imageUrl': downloadUrl, // <-- Firebase Storage URL 저장
@@ -258,15 +271,15 @@ class _WishlistPanelState extends ConsumerState<WishlistPanel> {
       // wishlistProvider에 addItem 메소드가 있어야 함 (Map 전달)
       await ref.read(wishlistProvider.notifier).addItem(customFurnitureData);
 
-      // 5. 성공 피드백
+      // 6. 성공 피드백
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('사용자 가구 "$itemName"이(가) 찜 목록에 추가되었습니다.')),
+          SnackBar(content: Text('사용자 가구 \"$itemName\"이(가) 찜 목록에 추가되었습니다.')),
         );
       }
 
     } catch (e) {
-      // 6. 오류 처리 및 피드백
+      // 7. 오류 처리 및 피드백
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('사용자 가구 추가 중 오류가 발생했습니다: $e')),
